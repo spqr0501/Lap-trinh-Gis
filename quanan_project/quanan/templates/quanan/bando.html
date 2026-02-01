@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bản Đồ Quán Ăn</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 20px;
+        }
+
+        .header a {
+            color: #fff;
+            margin-left: 15px;
+            text-decoration: none;
+            padding: 5px 12px;
+            border-radius: 15px;
+        }
+
+        .header a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .main {
+            display: flex;
+            height: calc(100vh - 50px);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 14px;
+            color: #667eea;
+            margin: 12px 0 8px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 15px;
+            border: none;
+            font-size: 13px;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .filter-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 12px;
+            background: #2d3a5f;
+            color: #fff;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: #667eea;
+        }
+
+        .quan-card {
+            background: #2d3a5f;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .quan-card:hover {
+            background: #3d4a6f;
+        }
+
+        .quan-card h3 {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .quan-card .meta {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .quan-card .loai {
+            background: #667eea;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+        }
+
+        #map {
+            flex: 1;
+        }
+
+        .right-panel {
+            width: 280px;
+            background: #16213e;
+            color: #fff;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .right-panel h2 {
+            font-size: 14px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .right-panel label {
+            font-size: 11px;
+            color: #aaa;
+            display: block;
+            margin: 8px 0 3px;
+        }
+
+        .right-panel input,
+        .right-panel select {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 5px;
+            border: 1px solid #2d3a5f;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .right-panel button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: #fff;
+        }
+
+        .btn-info {
+            background: #3498db;
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: #fff;
+            display: none;
+        }
+
+        .section {
+            background: #1a1a2e;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .coord-box {
+            display: flex;
+            gap: 5px;
+        }
+
+        .coord-box input {
+            flex: 1;
+        }
+
+        .route-info {
+            background: #2d3a5f;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .route-info b {
+            color: #27ae60;
+        }
+
+        .goiy-panel {
+            margin-top: 12px;
+        }
+
+        .goiy-card {
+            background: #2d3a5f;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .goiy-card:hover {
+            background: #3d4a6f;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <h1>WebGIS Quán Ăn</h1>
+        <nav>
+            <a href="/" class="active">Bản đồ</a>
+            <a href="/danh-sach/">Danh sách</a>
+            <a href="/thong-ke/">Thống kê</a>
+            <a href="/admin/">Quản trị</a>
+        </nav>
+    </header>
+
+
+    <div class="main">
+        <aside class="sidebar">
+            <div class="search-box">
+                <input type="text" id="search" placeholder="Tìm theo tên...">
+            </div>
+            <h2>Lọc theo loại</h2>
+            <div class="filters" id="filters">
+                <button class="filter-btn active" data-loai="all">Tất cả</button>
+            </div>
+            <h2>Danh sách (<span id="count">0</span>)</h2>
+            <div id="list">Đang tải...</div>
+        </aside>
+
+        <div id="map"></div>
+
+        <aside class="right-panel">
+            <!-- Điểm xuất phát -->
+            <div class="section">
+                <div class="section-title">Điểm xuất phát</div>
+                <button class="btn-info" onclick="layViTriHienTai()">Lấy vị trí của tôi</button>
+                <button class="btn-primary" onclick="chonDiemXuatPhat()" style="margin-top:5px">Chọn trên bản
+                    đồ</button>
+                <div class="coord-box" style="margin-top:8px">
+                    <input type="number" id="start-lat" placeholder="Vĩ độ" step="0.0001">
+                    <input type="number" id="start-lng" placeholder="Kinh độ" step="0.0001">
+                </div>
+                <div id="start-status" style="font-size:11px;color:#888;margin-top:5px">Chưa chọn điểm xuất phát</div>
+            </div>
+
+            <!-- Tìm theo bán kính -->
+            <div class="section">
+                <div class="section-title">Tìm theo bán kính</div>
+                <label>Bán kính</label>
+                <select id="radius">
+                    <option value="1">1 km</option>
+                    <option value="2" selected>2 km</option>
+                    <option value="3">3 km</option>
+                    <option value="5">5 km</option>
+                    <option value="10">10 km</option>
+                </select>
+                <button class="btn-success" onclick="timTheoViTri()">Tìm kiếm</button>
+                <button class="btn-danger" id="btn-tat" onclick="tatTimKiem()">Tắt tìm kiếm</button>
+            </div>
+
+            <!-- Chỉ đường -->
+            <div class="section">
+                <div class="section-title">Chỉ đường đến quán</div>
+                <div id="route-target" style="font-size:11px;color:#888">Chọn quán để chỉ đường</div>
+                <button class="btn-success" id="btn-route" onclick="timDuong()" style="display:none">Chỉ đường</button>
+                <button class="btn-danger" id="btn-clear-route" onclick="xoaDuong()" style="display:none">Xóa
+                    đường</button>
+                <div class="route-info" id="route-info">
+                    Khoảng cách: <b id="route-dist">-</b><br>
+                    Thời gian: <b id="route-time">-</b>
+                </div>
+            </div>
+
+            <!-- Gợi ý -->
+            <div class="goiy-panel">
+                <h2>Quán tương tự</h2>
+                <div id="goiy-list"><i style="color:#888;font-size:11px">Chọn quán để xem gợi ý</i></div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    {% load static %}
+    <script src="{% static 'quanan/js/map.js' %}"></script>
+    <script>
+        // Khởi tạo
+        khoiTaoMap('map');
+        loadLoaiQuan();
+        loadDanhSachQuan();
+        khoiTaoSuKien();
+    </script>
+</body>
+
+</html>
