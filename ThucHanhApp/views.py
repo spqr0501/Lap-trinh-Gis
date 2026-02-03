@@ -4,4 +4,4 @@ from django.shortcuts import render
 
 def trang_chu(request):
 
-    return render(request, 'ThucHanhApp/bando.html')
+    return render(request, 'bando.html')
