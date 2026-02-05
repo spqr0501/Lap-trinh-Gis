@@ -1,0 +1,49 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Đánh Giá{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Đánh Giá</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="cua_hang_id">Cửa Hàng:</label>
+            <select id="cua_hang_id" name="cua_hang_id" required>
+                <option value="">-- Chọn cửa hàng --</option>
+                {% for ch in cua_hangs %}
+                <option value="{{ ch.id }}" {% if item and item.cua_hang.id==ch.id %}selected{% endif %}>
+                    {{ ch.ten_cua_hang }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="diem">Điểm (1-5):</label>
+            <select id="diem" name="diem" required>
+                {% for i in "12345" %}
+                <option value="{{ forloop.counter }}" {% if item and item.diem==forloop.counter %}selected{% endif %}>
+                    {{ forloop.counter }} sao
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="nhan_xet">Nhận Xét:</label>
+            <textarea id="nhan_xet" name="nhan_xet">{{ item.nhan_xet|default:'' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="ngay_danh_gia">Ngày Đánh Giá:</label>
+            <input type="date" id="ngay_danh_gia" name="ngay_danh_gia"
+                value="{{ item.ngay_danh_gia|date:'Y-m-d'|default:'' }}" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_danhgia_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Sự Kiện{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Sự Kiện</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="ten_su_kien">Tên Sự Kiện:</label>
+            <input type="text" id="ten_su_kien" name="ten_su_kien" value="{{ item.ten_su_kien|default:'' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="mo_ta">Mô Tả:</label>
+            <textarea id="mo_ta" name="mo_ta">{{ item.mo_ta|default:'' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="ngay_bat_dau">Ngày Bắt Đầu:</label>
+            <input type="date" id="ngay_bat_dau" name="ngay_bat_dau"
+                value="{{ item.ngay_bat_dau|date:'Y-m-d'|default:'' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="ngay_ket_thuc">Ngày Kết Thúc:</label>
+            <input type="date" id="ngay_ket_thuc" name="ngay_ket_thuc"
+                value="{{ item.ngay_ket_thuc|date:'Y-m-d'|default:'' }}" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_sukien_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}

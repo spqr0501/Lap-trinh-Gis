@@ -1,0 +1,41 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Quản Lý Loại Cửa Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Danh Sách Loại Cửa Hàng</h1>
+    <a href="{% url 'admin_loai_create' %}" class="btn btn-success">Thêm Mới</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên Loại</th>
+                <th>Mô Tả</th>
+                <th>Số Cửa Hàng</th>
+                <th>Hành Động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.ten_loai }}</td>
+                <td>{{ item.mo_ta|truncatewords:10 }}</td>
+                <td>{{ item.cua_hangs.count }}</td>
+                <td>
+                    <a href="{% url 'admin_loai_update' item.id %}" class="btn btn-primary">Sửa</a>
+                    <a href="{% url 'admin_loai_delete' item.id %}" class="btn btn-danger"
+                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center;">Chưa có dữ liệu</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -41,7 +41,6 @@ GDAL_LIBRARY_PATH = os.path.join(OSGEO4W, 'bin', 'gdal312.dll')
 GEOS_LIBRARY_PATH = os.path.join(OSGEO4W, 'bin', 'geos_c.dll')
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -131,3 +130,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'ThucHanhApp' / 'static',
+]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

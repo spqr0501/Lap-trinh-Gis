@@ -1,0 +1,68 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Dashboard Admin{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Dashboard Quản Trị</h1>
+    <p>Xin chào, <strong>{{ request.user.username }}</strong>!</p>
+</div>
+
+<div class="admin-dashboard">
+    <div class="stat-card">
+        <h2>Loại Cửa Hàng</h2>
+        <h3>{{ stats.loai_count }}</h3>
+        <a href="{% url 'admin_loai_list' %}" class="btn btn-secondary">Quản Lý</a>
+    </div>
+
+    <div class="stat-card">
+        <h2>Cửa Hàng</h2>
+        <h3>{{ stats.cuahang_count }}</h3>
+        <a href="{% url 'admin_cuahang_list' %}" class="btn btn-secondary">Quản Lý</a>
+    </div>
+
+    <div class="stat-card">
+        <h2>Đánh Giá</h2>
+        <h3>{{ stats.danhgia_count }}</h3>
+        <a href="{% url 'admin_danhgia_list' %}" class="btn btn-secondary">Quản Lý</a>
+    </div>
+
+    <div class="stat-card">
+        <h2>Sự Kiện</h2>
+        <h3>{{ stats.sukien_count }}</h3>
+        <a href="{% url 'admin_sukien_list' %}" class="btn btn-secondary">Quản Lý</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Đánh Giá Gần Đây</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Cửa Hàng</th>
+                <th>Điểm</th>
+                <th>Nhận Xét</th>
+                <th>Ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dg in recent_reviews %}
+            <tr>
+                <td>{{ dg.cua_hang.ten_cua_hang }}</td>
+                <td>
+                    <span class="rating">
+                        {% for i in "12345" %}
+                        {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %} {% endfor %} </span>
+                </td>
+                <td>{{ dg.nhan_xet|truncatewords:15 }}</td>
+                <td>{{ dg.ngay_danh_gia }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">Chưa có đánh giá</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

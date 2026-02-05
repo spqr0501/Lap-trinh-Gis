@@ -1,0 +1,88 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Cửa Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Cửa Hàng</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="ten_cua_hang">Tên Cửa Hàng:</label>
+            <input type="text" id="ten_cua_hang" name="ten_cua_hang" value="{{ item.ten_cua_hang|default:'' }}"
+                required>
+        </div>
+
+        <div class="form-group">
+            <label for="dia_chi">Địa Chỉ:</label>
+            <textarea id="dia_chi" name="dia_chi" required>{{ item.dia_chi|default:'' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="loai_id">Loại Cửa Hàng:</label>
+            <select id="loai_id" name="loai_id" required>
+                <option value="">-- Chọn loại --</option>
+                {% for loai in loai_cua_hangs %}
+                <option value="{{ loai.id }}" {% if item and item.loai.id==loai.id %}selected{% endif %}>
+                    {{ loai.ten_loai }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Vị Trí Trên Bản Đồ:</label>
+            <p><small>Click trên bản đồ để chọn vị trí</small></p>
+            <input type="hidden" id="lat" name="lat" value="{% if item.geom %}{{ item.geom.y }}{% endif %}">
+            <input type="hidden" id="lng" name="lng" value="{% if item.geom %}{{ item.geom.x }}{% endif %}">
+            <div id="coords-display">
+                {% if item.geom %}
+                Tọa độ: {{ item.geom.y }}, {{ item.geom.x }}
+                {% else %}
+                Chưa chọn vị trí
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_cuahang_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var currentLat = {% if item.geom %}{{ item.geom.y }} {% else %} 16.0544{% endif %};
+    var currentLng = {% if item.geom %}{{ item.geom.x }} {% else %} 108.2022{% endif %};
+
+    var map = L.map('map').setView([currentLat, currentLng], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    var marker = null;
+
+    {% if item.geom %}
+    marker = L.marker([currentLat, currentLng]).addTo(map);
+    {% endif %}
+
+    map.on('click', function (e) {
+        if (marker) {
+            map.removeLayer(marker);
+        }
+
+        marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+
+        document.getElementById('lat').value = e.latlng.lat;
+        document.getElementById('lng').value = e.latlng.lng;
+        document.getElementById('coords-display').textContent =
+            'Tọa độ: ' + e.latlng.lat.toFixed(6) + ', ' + e.latlng.lng.toFixed(6);
+    });
+</script>
+{% endblock %}

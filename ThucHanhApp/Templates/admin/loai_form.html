@@ -1,0 +1,25 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Loại Cửa Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Loại Cửa Hàng</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="ten_loai">Tên Loại:</label>
+            <input type="text" id="ten_loai" name="ten_loai" value="{{ item.ten_loai|default:'' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="mo_ta">Mô Tả:</label>
+            <textarea id="mo_ta" name="mo_ta">{{ item.mo_ta|default:'' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_loai_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}

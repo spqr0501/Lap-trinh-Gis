@@ -1,36 +1,450 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaflet + OpenStreetMap</title>
+    <title>Bản Đồ Cửa Hàng - Tìm Đường</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .header-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .header-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .header-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Main Container */
+        .container {
+            display: flex;
+            height: calc(100vh - 73px);
+        }
+
+        /* Map */
         #map {
-            height: 100vh; /
+            flex: 1;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            z-index: 999;
+        }
+
+        .sidebar-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .sidebar-section h2 {
+            font-size: 1.2rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        /* Routing Controls */
+        .routing-controls {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-block;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .coords-display {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.3rem;
+        }
+
+        .route-info {
+            background: #e8f5e9;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+
+        .route-info h3 {
+            font-size: 1rem;
+            color: #2e7d32;
+            margin-bottom: 0.5rem;
+        }
+
+        .route-info p {
+            margin: 0.3rem 0;
+            font-size: 0.9rem;
+        }
+
+        /* Filters */
+        select {
+            width: 100%;
+            padding: 0.6rem;
+            border: 2px solid #e1e8ed;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Store List */
+        .store-list {
+            max-height: none;
+        }
+
+        .store-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.3s;
+            position: relative;
+        }
+
+        .store-item:hover {
+            background: #f8f9fa;
+        }
+
+        .store-item.has-event {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .store-item.has-event:hover {
+            background: #fff8dd;
+        }
+
+        .store-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.3rem;
+        }
+
+        .store-type {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.3rem;
+        }
+
+        .store-distance {
+            font-size: 0.85rem;
+            color: #999;
+            font-style: italic;
+        }
+
+        .store-events {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #ffd54f;
+        }
+
+        .event-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-right: 0.3rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .distance-info {
+            background: #e3f2fd;
+            padding: 0.8rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* Map */
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+
+        /* Loading Indicator */
+        .loading {
+            text-align: center;
+            padding: 1rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* Scrollbar */
+        .sidebar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
     </style>
 </head>
+
 <body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🗺️ Bản Đồ Cửa Hàng Tiện Lợi</h1>
+        <div class="header-links">
+            {% if user.is_authenticated %}
+            <a href="{% url 'admin_dashboard' %}">Quản Trị</a>
+            <a href="{% url 'admin_logout' %}">Đăng Xuất</a>
+            {% else %}
+            <a href="{% url 'admin_login' %}">Đăng Nhập</a>
+            {% endif %}
+        </div>
+    </div>
 
-    <div id="map"></div>
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Routing Section -->
+            <div class="sidebar-section">
+                <h2>Tìm Đường</h2>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+                <div class="routing-controls">
+                    <div class="control-group">
+                        <label>Điểm xuất phát:</label>
+                        <button onclick="selectStart()" class="btn btn-primary btn-sm">Click trên bản đồ</button>
+                        <div id="start-coords" class="coords-display">Chưa chọn</div>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Điểm đến:</label>
+                        <button onclick="selectEnd()" class="btn btn-primary btn-sm">Click trên bản đồ</button>
+                        <div id="end-coords" class="coords-display">Chưa chọn</div>
+                    </div>
+
+                    <button onclick="calculateRoute()" class="btn btn-success">Tìm Đường</button>
+                    <button onclick="clearRoute()" class="btn btn-danger">Xóa</button>
+                </div>
+
+                <div id="route-info" class="route-info" style="display: none;">
+                    <h3>Thông Tin Tuyến Đường</h3>
+                    <p><strong>Khoảng cách:</strong> <span id="distance"></span></p>
+                    <p><strong>Thời gian:</strong> <span id="duration"></span></p>
+                </div>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="sidebar-section">
+                <h2>Lọc Cửa Hàng</h2>
+
+                <div class="control-group">
+                    <label>Vị trí của bạn:</label>
+                    <button onclick="tim_vi_tri_nguoi_dung()" class="btn btn-success" style="width: 100%;">
+                        Tìm Vị Trí Của Tôi
+                    </button>
+                    <div id="user-coords" class="coords-display">Chưa xác định</div>
+                </div>
+
+                <div class="control-group">
+                    <label>Bán kính tìm kiếm:</label>
+                    <select id="radius-filter" onchange="filterStores()">
+                        <option value="">Tất cả</option>
+                        <option value="1">Trong vòng 1 km</option>
+                        <option value="2">Trong vòng 2 km</option>
+                        <option value="3">Trong vòng 3 km</option>
+                        <option value="5">Trong vòng 5 km</option>
+                        <option value="10">Trong vòng 10 km</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Loại cửa hàng:</label>
+                    <select id="type-filter" onchange="filterStores()">
+                        <option value="">Tất cả</option>
+                        {% for loai in loai_cua_hangs %}
+                        <option value="{{ loai.id }}">{{ loai.ten_loai }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="distance-info" id="user-location-info" style="display: none;">
+                    <strong>Đã tìm thấy vị trí</strong><br>
+                    <span id="found-stores-count"></span>
+                </div>
+            </div>
+
+            <!-- Store List Section -->
+            <div class="sidebar-section">
+                <h2>Danh Sách Cửa Hàng</h2>
+                <div id="store-list" class="store-list">
+                    <div class="loading">Đang tải danh sách cửa hàng...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Load static file -->
+    {% load static %}
+
+    <!-- GIS Tools Library -->
+    <script src="{% static 'js/gis_tools.js' %}"></script>
 
     <script>
-        var map = L.map('map').setView([51.505, -0.09], 13);  // Lat, Lng, zoom level
+        // Du lieu cua hang tu Django - load vao bien toan cuc
+        du_lieu_cua_hang = [
+            {% for sd in stores_data %}
+        {
+            id: {{ sd.store.id }},
+            ten: "{{sd.store.ten_cua_hang|escapejs}}",
+                dia_chi: "{{sd.store.dia_chi|escapejs}}",
+                    loai: "{{sd.store.loai.ten_loai|escapejs}}",
+                        loai_id: {{ sd.store.loai.id }},
+            vi_do: {%if sd.store.geom %} {{ sd.store.geom.y }} {%else%} null{% endif %},
+            kinh_do: {%if sd.store.geom %} {{ sd.store.geom.x }} {%else%} null{% endif %},
+            co_su_kien: {{ sd.has_events | lower }},
+            danh_sach_su_kien: [
+                {% for event in sd.events %}
+        "{{event.ten_su_kien|escapejs}}"{%if not forloop.last %}, {% endif %}
+        {% endfor %}
+            ],
+        khoang_cach: null,
+            dau_hieu: null
+        }{%if not forloop.last %}, {% endif %}
+        {% endfor %}
+        ];
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
 
-        var marker = L.marker([51.505, -0.09]).addTo(map);
+        // Khoi tao ban do khi DOM da san sang
+        document.addEventListener('DOMContentLoaded', function () {
+            // Khoi tao ban do tai Da Nang
+            khoi_tao_ban_do('map', 16.0544, 108.2022, 13);
 
-        // Thêm pop-up khi nhấp vào marker
-        marker.bindPopup("<b>Hello world!</b><br>popup.").openPopup();
+            // Them cac dau hieu cua hang
+            them_dau_hieu_cua_hang();
+
+            // Hien thi danh sach ban dau (chua co khoang cach)
+            hien_thi_danh_sach_cua_hang('type-filter', 'store-list');
+        });
     </script>
-
 </body>
+
 </html>
