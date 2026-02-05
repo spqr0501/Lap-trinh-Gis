@@ -1,0 +1,38 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Quản Lý Cửa Hàng - Sự Kiện{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Danh Sách Cửa Hàng - Sự Kiện</h1>
+    <a href="{% url 'admin_cuahang_sukien_create' %}" class="btn btn-success">Thêm Mới</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Cửa Hàng</th>
+                <th>Sự Kiện</th>
+                <th>Hành Động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.cua_hang.ten_cua_hang }}</td>
+                <td>{{ item.su_kien.ten_su_kien }}</td>
+                <td>
+                    <a href="{% url 'admin_cuahang_sukien_delete' item.id %}" class="btn btn-danger"
+                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">Chưa có dữ liệu</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

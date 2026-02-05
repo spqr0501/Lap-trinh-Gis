@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %}</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <nav class="admin-nav">
+        <ul>
+            <li><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+            <li><a href="{% url 'admin_loai_list' %}">Loại CH</a></li>
+            <li><a href="{% url 'admin_cuahang_list' %}">Cửa Hàng</a></li>
+            <li><a href="{% url 'admin_danhgia_list' %}">Đánh Giá</a></li>
+            <li><a href="{% url 'admin_sukien_list' %}">Sự Kiện</a></li>
+            <li><a href="{% url 'admin_cuahang_sukien_list' %}">CH-SK</a></li>
+            <li><a href="{% url 'trang_chu' %}">Xem Trang Chính</a></li>
+            <li><a href="{% url 'admin_logout' %}">Đăng Xuất</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

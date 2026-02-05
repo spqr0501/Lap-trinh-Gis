@@ -1,0 +1,35 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Thêm Cửa Hàng - Sự Kiện{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Thêm Cửa Hàng - Sự Kiện</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="cua_hang_id">Cửa Hàng:</label>
+            <select id="cua_hang_id" name="cua_hang_id" required>
+                <option value="">-- Chọn cửa hàng --</option>
+                {% for ch in cua_hangs %}
+                <option value="{{ ch.id }}">{{ ch.ten_cua_hang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="su_kien_id">Sự Kiện:</label>
+            <select id="su_kien_id" name="su_kien_id" required>
+                <option value="">-- Chọn sự kiện --</option>
+                {% for sk in su_kiens %}
+                <option value="{{ sk.id }}">{{ sk.ten_su_kien }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_cuahang_sukien_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}
