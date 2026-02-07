@@ -2,40 +2,247 @@
 
 {% block title %}Dashboard Admin{% endblock %}
 
+{% block extra_css %}
+<style>
+    /**
+     * GRID STAT CARDS
+     * Luoi hien thi cac the thong ke
+     */
+    .luoi-thong-ke {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /**
+     * STAT CARD (The thong ke)
+     * Hien thi so lieu thong ke voi icon va mau sac
+     */
+    .the-thong-ke {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .the-thong-ke::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--mau-gradient);
+        transition: height 0.3s ease;
+    }
+
+    .the-thong-ke:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .the-thong-ke:hover::before {
+        height: 100%;
+        opacity: 0.1;
+    }
+
+    .noi-dung-the {
+        position: relative;
+        z-index: 1;
+    }
+
+    .tieu-de-the {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #718096;
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .icon-the {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        background: var(--mau-gradient);
+        color: white;
+    }
+
+    .so-lieu-the {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.8rem;
+    }
+
+    .link-the {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: gap 0.3s ease;
+    }
+
+    .link-the:hover {
+        gap: 0.8rem;
+    }
+
+    /**
+     * MAU GRADIENT CHO TUNG THE
+     * Color gradients for each card type
+     */
+    .the-loai {
+        --mau-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .the-cua-hang {
+        --mau-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .the-danh-gia {
+        --mau-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .the-su-kien {
+        --mau-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+
+    /**
+     * BANG DANH GIA
+     * Reviews table styling
+     */
+    .rating {
+        color: #fbbf24;
+        font-size: 1.1rem;
+        letter-spacing: 2px;
+    }
+
+    /**
+     * LOI CHAO
+     * Welcome message
+     */
+    .loi-chao {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .loi-chao h1 {
+        color: white;
+        margin: 0;
+        font-size: 1.8rem;
+    }
+
+    .loi-chao p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+
+    .icon-loi-chao {
+        font-size: 3rem;
+        opacity: 0.3;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h1>Dashboard Quản Trị</h1>
-    <p>Xin chào, <strong>{{ request.user.username }}</strong>!</p>
+<!--
+    Trang Dashboard Quan Tri
+    Admin Dashboard Page
+    
+    GIAI THICH:
+    - Hien thi tong quan thong ke he thong
+    - Co cac the (cards) hien thi so lieu
+    - Bang danh gia gan day
+    - Responsive design
+-->
+
+<div class="loi-chao">
+    <div>
+        <h1>Dashboard Quản Trị</h1>
+        <p>Xin chào, <strong>{{ request.user.username }}</strong>! Chào mừng bạn quay trở lại.</p>
+    </div>
+    <i class="fas fa-chart-line icon-loi-chao"></i>
 </div>
 
-<div class="admin-dashboard">
-    <div class="stat-card">
-        <h2>Loại Cửa Hàng</h2>
-        <h3>{{ stats.loai_count }}</h3>
-        <a href="{% url 'admin_loai_list' %}" class="btn btn-secondary">Quản Lý</a>
+<div class="luoi-thong-ke">
+    <!-- The Loai Cua Hang -->
+    <div class="the-thong-ke the-loai">
+        <div class="noi-dung-the">
+            <div class="icon-the">
+                <i class="fas fa-tags"></i>
+            </div>
+            <div class="so-lieu-the">{{ stats.loai_count }}</div>
+            <div class="tieu-de-the">Loại Cửa Hàng</div>
+            <a href="{% url 'admin_loai_list' %}" class="link-the">
+                Quản lý <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
     </div>
 
-    <div class="stat-card">
-        <h2>Cửa Hàng</h2>
-        <h3>{{ stats.cuahang_count }}</h3>
-        <a href="{% url 'admin_cuahang_list' %}" class="btn btn-secondary">Quản Lý</a>
+    <!-- The Cua Hang -->
+    <div class="the-thong-ke the-cua-hang">
+        <div class="noi-dung-the">
+            <div class="icon-the">
+                <i class="fas fa-store"></i>
+            </div>
+            <div class="so-lieu-the">{{ stats.cuahang_count }}</div>
+            <div class="tieu-de-the">Cửa Hàng</div>
+            <a href="{% url 'admin_cuahang_list' %}" class="link-the">
+                Quản lý <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
     </div>
 
-    <div class="stat-card">
-        <h2>Đánh Giá</h2>
-        <h3>{{ stats.danhgia_count }}</h3>
-        <a href="{% url 'admin_danhgia_list' %}" class="btn btn-secondary">Quản Lý</a>
+    <!-- The Danh Gia -->
+    <div class="the-thong-ke the-danh-gia">
+        <div class="noi-dung-the">
+            <div class="icon-the">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="so-lieu-the">{{ stats.danhgia_count }}</div>
+            <div class="tieu-de-the">Đánh Giá</div>
+            <a href="{% url 'admin_danhgia_list' %}" class="link-the">
+                Quản lý <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
     </div>
 
-    <div class="stat-card">
-        <h2>Sự Kiện</h2>
-        <h3>{{ stats.sukien_count }}</h3>
-        <a href="{% url 'admin_sukien_list' %}" class="btn btn-secondary">Quản Lý</a>
+    <!-- The Su Kien -->
+    <div class="the-thong-ke the-su-kien">
+        <div class="noi-dung-the">
+            <div class="icon-the">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="so-lieu-the">{{ stats.sukien_count }}</div>
+            <div class="tieu-de-the">Sự Kiện</div>
+            <a href="{% url 'admin_sukien_list' %}" class="link-the">
+                Quản lý <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
     </div>
 </div>
 
 <div class="card">
-    <h2>Đánh Giá Gần Đây</h2>
+    <h2><i class="fas fa-comments"></i> Đánh Giá Gần Đây</h2>
     <table>
         <thead>
             <tr>
@@ -48,18 +255,21 @@
         <tbody>
             {% for dg in recent_reviews %}
             <tr>
-                <td>{{ dg.cua_hang.ten_cua_hang }}</td>
+                <td><strong>{{ dg.cua_hang.ten_cua_hang }}</strong></td>
                 <td>
                     <span class="rating">
                         {% for i in "12345" %}
-                        {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %} {% endfor %} </span>
+                        {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %}{% endfor %} </span>
                 </td>
                 <td>{{ dg.nhan_xet|truncatewords:15 }}</td>
-                <td>{{ dg.ngay_danh_gia }}</td>
+                <td>{{ dg.ngay_danh_gia|date:"d/m/Y" }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" style="text-align: center;">Chưa có đánh giá</td>
+                <td colspan="4" style="text-align: center; color: #a0aec0; padding: 2rem;">
+                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    Chưa có đánh giá nào
+                </td>
             </tr>
             {% endfor %}
         </tbody>
