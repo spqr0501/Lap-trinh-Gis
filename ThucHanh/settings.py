@@ -31,7 +31,7 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-OSGEO4W = r'D:\laptrinh'
+OSGEO4W = r'E:\OSGEO4W'
 os.environ['OSGEO4W_ROOT'] = OSGEO4W
 os.environ['GDAL_DATA'] = os.path.join(OSGEO4W, 'share', 'gdal')
 os.environ['PROJ_LIB'] = os.path.join(OSGEO4W, 'share', 'proj')
