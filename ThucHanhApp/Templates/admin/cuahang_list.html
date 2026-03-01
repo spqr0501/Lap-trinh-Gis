@@ -25,8 +25,7 @@
                 <td>{{ item.ten_cua_hang }}</td>
                 <td>{{ item.dia_chi|truncatewords:10 }}</td>
                 <td>{{ item.loai.ten_loai }}</td>
-                <td>{% if item.geom %}{{ item.geom.y|floatformat:5 }}, {{ item.geom.x|floatformat:5 }}{% else %}N/A{%
-                    endif %}</td>
+                <td>{% if item.geom %}{{ item.geom.y|floatformat:5 }}, {{ item.geom.x|floatformat:5 }}{% else %}N/A{% endif %}</td>
                 <td>
                     <a href="{% url 'admin_cuahang_update' item.id %}" class="btn btn-primary">Sửa</a>
                     <a href="{% url 'admin_cuahang_delete' item.id %}" class="btn btn-danger"
