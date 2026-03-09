@@ -1,0 +1,93 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Tạo{% endif %} Đơn Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa Đơn Hàng DH-{{ item.id }}{% else %}Tạo Đơn Hàng{% endif %}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="cua_hang_id">Cửa Hàng:</label>
+            <select id="cua_hang_id" name="cua_hang_id" required>
+                <option value="">-- Chọn cửa hàng --</option>
+                {% for ch in cua_hangs %}
+                <option value="{{ ch.id }}" {% if item and item.cua_hang.id == ch.id %}selected{% endif %}>
+                    {{ ch.ten_cua_hang }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="trang_thai">Trạng Thái:</label>
+            <select id="trang_thai" name="trang_thai" required>
+                {% for value, label in trang_thais %}
+                <option value="{{ value }}" {% if item and item.trang_thai == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="ghi_chu">Ghi Chú:</label>
+            <textarea id="ghi_chu" name="ghi_chu">{{ item.ghi_chu|default:'' }}</textarea>
+        </div>
+
+        {% if not item %}
+        <!-- Chi tiet don hang (chi khi tao moi) -->
+        <div class="card" style="margin-top: 15px;">
+            <h3>Chi Tiết Đơn Hàng</h3>
+            <div id="chi-tiet-container">
+                <div class="chi-tiet-row" style="display:flex; gap:10px; margin-bottom:10px; align-items:end;">
+                    <div>
+                        <label>Mặt hàng:</label>
+                        <select name="mat_hang_id" onchange="autoFillPrice(this)">
+                            <option value="">-- Chọn --</option>
+                            {% for mh in mat_hangs %}
+                            <option value="{{ mh.id }}" data-gia="{{ mh.gia_ban }}">{{ mh.ten_mat_hang }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>SL:</label>
+                        <input type="number" name="so_luong_sp" value="1" min="1" style="width:80px;">
+                    </div>
+                    <div>
+                        <label>Đơn giá:</label>
+                        <input type="number" name="don_gia_sp" value="0" min="0" style="width:120px;">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-info" onclick="themDong()">+ Thêm mặt hàng</button>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 15px;">
+            <button type="submit" class="btn btn-success">Lưu</button>
+            <a href="{% url 'admin_donhang_list' %}" class="btn btn-secondary">Hủy</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    function autoFillPrice(select) {
+        var option = select.options[select.selectedIndex];
+        var gia = option.getAttribute('data-gia') || 0;
+        var row = select.closest('.chi-tiet-row');
+        row.querySelector('input[name="don_gia_sp"]').value = gia;
+    }
+
+    function themDong() {
+        var container = document.getElementById('chi-tiet-container');
+        var firstRow = container.querySelector('.chi-tiet-row');
+        var newRow = firstRow.cloneNode(true);
+        newRow.querySelector('select[name="mat_hang_id"]').value = '';
+        newRow.querySelector('input[name="so_luong_sp"]').value = 1;
+        newRow.querySelector('input[name="don_gia_sp"]').value = 0;
+        container.appendChild(newRow);
+    }
+</script>
+{% endblock %}

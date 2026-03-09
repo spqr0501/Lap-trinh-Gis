@@ -13,8 +13,7 @@
                 <th>ID</th>
                 <th>Tên Sự Kiện</th>
                 <th>Mô Tả</th>
-                <th>Ngày Bắt Đầu</th>
-                <th>Ngày Kết Thúc</th>
+                <th>Lịch</th>
                 <th>Hành Động</th>
             </tr>
         </thead>
@@ -24,8 +23,17 @@
                 <td>{{ item.id }}</td>
                 <td>{{ item.ten_su_kien }}</td>
                 <td>{{ item.mo_ta|truncatewords:10 }}</td>
-                <td>{{ item.ngay_bat_dau }}</td>
-                <td>{{ item.ngay_ket_thuc }}</td>
+                <td>
+                    {% if item.la_hang_tuan %}
+                    <span style="color:#1976d2; font-weight:bold;">🔄 Hàng tuần</span><br>
+                    {% for ngay in item.get_ngay_trong_tuan_display_list %}
+                    <span
+                        style="background:#e3f2fd; padding:2px 8px; border-radius:10px; margin:2px; display:inline-block; font-size:13px;">{{ngay}}</span>
+                    {% endfor %}
+                    {% else %}
+                    📅 {{ item.ngay_bat_dau|date:"d/m/Y" }} → {{ item.ngay_ket_thuc|date:"d/m/Y" }}
+                    {% endif %}
+                </td>
                 <td>
                     <a href="{% url 'admin_sukien_update' item.id %}" class="btn btn-primary">Sửa</a>
                     <a href="{% url 'admin_sukien_delete' item.id %}" class="btn btn-danger"
@@ -34,7 +42,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align: center;">Chưa có dữ liệu</td>
+                <td colspan="5" style="text-align: center;">Chưa có dữ liệu</td>
             </tr>
             {% endfor %}
         </tbody>

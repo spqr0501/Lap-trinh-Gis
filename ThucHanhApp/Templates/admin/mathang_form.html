@@ -1,0 +1,36 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Mặt Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Mặt Hàng</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="ten_mat_hang">Tên Mặt Hàng:</label>
+            <input type="text" id="ten_mat_hang" name="ten_mat_hang" value="{{ item.ten_mat_hang|default:'' }}"
+                required>
+        </div>
+
+        <div class="form-group">
+            <label for="don_vi">Đơn Vị:</label>
+            <input type="text" id="don_vi" name="don_vi" value="{{ item.don_vi|default:'cái' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="gia_ban">Giá Bán (VNĐ):</label>
+            <input type="number" id="gia_ban" name="gia_ban" value="{{ item.gia_ban|default:0 }}" min="0">
+        </div>
+
+        <div class="form-group">
+            <label for="mo_ta">Mô Tả:</label>
+            <textarea id="mo_ta" name="mo_ta">{{ item.mo_ta|default:'' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_mathang_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}

@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.gis.geos import Point
 from django.http import JsonResponse
-from .models import LoaiCuaHang, CuaHang, DanhGia, SuKien, CuaHangSuKien
+from .models import LoaiCuaHang, CuaHang, DanhGia, SuKien, CuaHangSuKien, MatHang, TonKho, DonHang, ChiTietDonHang
+from django.contrib.auth.models import User
 from .utils.gis_tools import CongCuGIS, khoang_cach_km
 from functools import wraps
 
@@ -81,6 +82,58 @@ def trang_chu(request):
         'stores_data': du_lieu_cua_hang,
         'loai_cua_hangs': danh_sach_loai,
     })
+
+
+# ====== API DANH GIA ======
+
+def api_danh_gia(request, cua_hang_id):
+    """Tra ve danh sach danh gia cua mot cua hang dang JSON"""
+    cua_hang = get_object_or_404(CuaHang, id=cua_hang_id)
+    danh_gias = DanhGia.objects.filter(cua_hang=cua_hang).order_by('-ngay_danh_gia')
+
+    ds = []
+    for dg in danh_gias:
+        ds.append({
+            'diem': dg.diem,
+            'nhan_xet': dg.nhan_xet,
+            'ngay': dg.ngay_danh_gia.strftime('%d/%m/%Y'),
+        })
+
+    trung_binh = sum(d['diem'] for d in ds) / len(ds) if ds else 0
+
+    return JsonResponse({
+        'ten_cua_hang': cua_hang.ten_cua_hang,
+        'so_danh_gia': len(ds),
+        'trung_binh': round(trung_binh, 1),
+        'danh_gias': ds,
+    })
+
+
+def api_gui_danh_gia(request, cua_hang_id):
+    """Tiep nhan danh gia moi (POST) cho mot cua hang"""
+    if request.method != 'POST':
+        return JsonResponse({'loi': 'Chi chap nhan POST'}, status=405)
+
+    import json
+    from datetime import date
+    try:
+        du_lieu = json.loads(request.body)
+        diem = int(du_lieu.get('diem', 0))
+        nhan_xet = du_lieu.get('nhan_xet', '').strip()
+        if not (1 <= diem <= 5):
+            return JsonResponse({'loi': 'Diem phai tu 1 den 5'}, status=400)
+        cua_hang = get_object_or_404(CuaHang, id=cua_hang_id)
+        danh_gia = DanhGia.objects.create(
+            cua_hang=cua_hang,
+            diem=diem,
+            nhan_xet=nhan_xet,
+            ngay_danh_gia=date.today(),
+            nguoi_dung=request.user if request.user.is_authenticated else None
+        )
+        ten_nguoi = request.user.get_full_name() or request.user.username if request.user.is_authenticated else 'Ẩn danh'
+        return JsonResponse({'thanh_cong': True, 'ten_nguoi': ten_nguoi})
+    except Exception as e:
+        return JsonResponse({'loi': str(e)}, status=400)
 
 
 # ====== API CONG CU GIS ======
@@ -805,17 +858,35 @@ def admin_sukien_create(request):
         mo_ta = request.POST.get('mo_ta', '')
         ngay_bat_dau = request.POST.get('ngay_bat_dau')
         ngay_ket_thuc = request.POST.get('ngay_ket_thuc')
-        
-        SuKien.objects.create(
+        la_hang_tuan = 'la_hang_tuan' in request.POST
+        ngay_trong_tuan_list = request.POST.getlist('ngay_trong_tuan')
+        ngay_trong_tuan = ','.join(ngay_trong_tuan_list)
+        cua_hang_id = request.POST.get('cua_hang')
+
+        su_kien = SuKien.objects.create(
             ten_su_kien=ten_su_kien,
             mo_ta=mo_ta,
             ngay_bat_dau=ngay_bat_dau,
-            ngay_ket_thuc=ngay_ket_thuc
+            ngay_ket_thuc=ngay_ket_thuc,
+            la_hang_tuan=la_hang_tuan,
+            ngay_trong_tuan=ngay_trong_tuan
         )
+        # Lien ket voi cua hang
+        if cua_hang_id:
+            CuaHangSuKien.objects.get_or_create(
+                cua_hang_id=cua_hang_id,
+                su_kien=su_kien
+            )
         messages.success(request, 'Thêm sự kiện thành công!')
         return redirect('admin_sukien_list')
-    
-    return render(request, 'admin/sukien_form.html')
+
+    stores = CuaHang.objects.all()
+    ngay_choices = SuKien.NGAY_TRONG_TUAN
+    return render(request, 'admin/sukien_form.html', {
+        'stores': stores,
+        'ngay_choices': ngay_choices,
+        'ngay_da_chon': [],
+    })
 
 
 @admin_required
@@ -846,11 +917,32 @@ def admin_sukien_update(request, id):
         muc.mo_ta = request.POST.get('mo_ta', '')
         muc.ngay_bat_dau = request.POST.get('ngay_bat_dau')
         muc.ngay_ket_thuc = request.POST.get('ngay_ket_thuc')
+        muc.la_hang_tuan = 'la_hang_tuan' in request.POST
+        ngay_trong_tuan_list = request.POST.getlist('ngay_trong_tuan')
+        muc.ngay_trong_tuan = ','.join(ngay_trong_tuan_list)
         muc.save()
+        # Cap nhat lien ket cua hang
+        cua_hang_id = request.POST.get('cua_hang')
+        if cua_hang_id:
+            muc.cua_hangs.all().delete()
+            CuaHangSuKien.objects.create(
+                cua_hang_id=cua_hang_id,
+                su_kien=muc
+            )
         messages.success(request, 'Cập nhật thành công!')
         return redirect('admin_sukien_list')
-    
-    return render(request, 'admin/sukien_form.html', {'item': muc})
+
+    stores = CuaHang.objects.all()
+    cua_hang_hien_tai = muc.cua_hangs.first()
+    ngay_choices = SuKien.NGAY_TRONG_TUAN
+    ngay_da_chon = muc.get_ngay_trong_tuan_list()
+    return render(request, 'admin/sukien_form.html', {
+        'item': muc,
+        'stores': stores,
+        'cua_hang_hien_tai': cua_hang_hien_tai,
+        'ngay_choices': ngay_choices,
+        'ngay_da_chon': ngay_da_chon,
+    })
 
 
 @admin_required
@@ -979,3 +1071,427 @@ def admin_cuahang_sukien_delete(request, id):
     muc.delete()
     messages.success(request, 'Xóa thành công!')
     return redirect('admin_cuahang_sukien_list')
+
+
+# ====== ADMIN CRUD: MAT HANG ======
+
+@admin_required
+def admin_mathang_list(request):
+    items = MatHang.objects.all()
+    return render(request, 'admin/mathang_list.html', {'items': items})
+
+
+@admin_required
+def admin_mathang_create(request):
+    if request.method == 'POST':
+        MatHang.objects.create(
+            ten_mat_hang=request.POST.get('ten_mat_hang'),
+            don_vi=request.POST.get('don_vi', 'cái'),
+            gia_ban=request.POST.get('gia_ban', 0),
+            mo_ta=request.POST.get('mo_ta', ''),
+        )
+        messages.success(request, 'Thêm mặt hàng thành công!')
+        return redirect('admin_mathang_list')
+    return render(request, 'admin/mathang_form.html')
+
+
+@admin_required
+def admin_mathang_update(request, id):
+    muc = get_object_or_404(MatHang, id=id)
+    if request.method == 'POST':
+        muc.ten_mat_hang = request.POST.get('ten_mat_hang')
+        muc.don_vi = request.POST.get('don_vi', 'cái')
+        muc.gia_ban = request.POST.get('gia_ban', 0)
+        muc.mo_ta = request.POST.get('mo_ta', '')
+        muc.save()
+        messages.success(request, 'Cập nhật thành công!')
+        return redirect('admin_mathang_list')
+    return render(request, 'admin/mathang_form.html', {'item': muc})
+
+
+@admin_required
+def admin_mathang_delete(request, id):
+    muc = get_object_or_404(MatHang, id=id)
+    muc.delete()
+    messages.success(request, 'Xóa thành công!')
+    return redirect('admin_mathang_list')
+
+
+# ====== ADMIN CRUD: TON KHO ======
+
+@admin_required
+def admin_tonkho_list(request):
+    items = TonKho.objects.select_related('cua_hang', 'mat_hang').all()
+    cua_hang_id = request.GET.get('cua_hang', '')
+    if cua_hang_id:
+        items = items.filter(cua_hang_id=int(cua_hang_id))
+    cua_hangs = CuaHang.objects.all()
+    return render(request, 'admin/tonkho_list.html', {
+        'items': items, 'cua_hangs': cua_hangs, 'cua_hang_id': cua_hang_id
+    })
+
+
+@admin_required
+def admin_tonkho_create(request):
+    if request.method == 'POST':
+        cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
+        mat_hang = get_object_or_404(MatHang, id=request.POST.get('mat_hang_id'))
+        so_luong = int(request.POST.get('so_luong', 0))
+        ton_kho, created = TonKho.objects.get_or_create(
+            cua_hang=cua_hang, mat_hang=mat_hang,
+            defaults={'so_luong': so_luong}
+        )
+        if not created:
+            ton_kho.so_luong += so_luong
+            ton_kho.save()
+        messages.success(request, 'Cập nhật tồn kho thành công!')
+        return redirect('admin_tonkho_list')
+    cua_hangs = CuaHang.objects.all()
+    mat_hangs = MatHang.objects.all()
+    return render(request, 'admin/tonkho_form.html', {
+        'cua_hangs': cua_hangs, 'mat_hangs': mat_hangs
+    })
+
+
+@admin_required
+def admin_tonkho_update(request, id):
+    muc = get_object_or_404(TonKho, id=id)
+    if request.method == 'POST':
+        muc.cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
+        muc.mat_hang = get_object_or_404(MatHang, id=request.POST.get('mat_hang_id'))
+        muc.so_luong = int(request.POST.get('so_luong', 0))
+        muc.save()
+        messages.success(request, 'Cập nhật thành công!')
+        return redirect('admin_tonkho_list')
+    cua_hangs = CuaHang.objects.all()
+    mat_hangs = MatHang.objects.all()
+    return render(request, 'admin/tonkho_form.html', {
+        'item': muc, 'cua_hangs': cua_hangs, 'mat_hangs': mat_hangs
+    })
+
+
+@admin_required
+def admin_tonkho_delete(request, id):
+    muc = get_object_or_404(TonKho, id=id)
+    muc.delete()
+    messages.success(request, 'Xóa thành công!')
+    return redirect('admin_tonkho_list')
+
+
+# ====== ADMIN CRUD: DON HANG ======
+
+@admin_required
+def admin_donhang_list(request):
+    items = DonHang.objects.select_related('cua_hang').all()
+    return render(request, 'admin/donhang_list.html', {'items': items})
+
+
+@admin_required
+def admin_donhang_create(request):
+    if request.method == 'POST':
+        cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
+        mat_hang_ids = request.POST.getlist('mat_hang_id')
+        so_luongs = request.POST.getlist('so_luong_sp')
+        don_gias = request.POST.getlist('don_gia_sp')
+
+        # Kiem tra ton kho truoc khi tao don hang
+        loi_ton_kho = []
+        for i in range(len(mat_hang_ids)):
+            if mat_hang_ids[i]:
+                mh_id = int(mat_hang_ids[i])
+                sl_dat = int(so_luongs[i]) if i < len(so_luongs) else 1
+                mat_hang = MatHang.objects.filter(id=mh_id).first()
+                ton_kho = TonKho.objects.filter(
+                    cua_hang=cua_hang, mat_hang_id=mh_id
+                ).first()
+                so_luong_ton = ton_kho.so_luong if ton_kho else 0
+                if sl_dat > so_luong_ton:
+                    ten_mh = mat_hang.ten_mat_hang if mat_hang else f'MH#{mh_id}'
+                    loi_ton_kho.append(
+                        f'{ten_mh}: đặt {sl_dat} nhưng kho {cua_hang.ten_cua_hang} chỉ còn {so_luong_ton}'
+                    )
+
+        if loi_ton_kho:
+            for loi in loi_ton_kho:
+                messages.error(request, f'❌ Không đủ hàng - {loi}')
+            cua_hangs = CuaHang.objects.all()
+            mat_hangs = MatHang.objects.all()
+            trang_thais = DonHang.TRANG_THAI_CHOICES
+            return render(request, 'admin/donhang_form.html', {
+                'cua_hangs': cua_hangs, 'mat_hangs': mat_hangs, 'trang_thais': trang_thais
+            })
+
+        # Tao don hang
+        don_hang = DonHang.objects.create(
+            cua_hang=cua_hang,
+            trang_thai=request.POST.get('trang_thai', 'cho_xu_ly'),
+            ghi_chu=request.POST.get('ghi_chu', ''),
+        )
+        for i in range(len(mat_hang_ids)):
+            if mat_hang_ids[i]:
+                ct = ChiTietDonHang.objects.create(
+                    don_hang=don_hang,
+                    mat_hang_id=int(mat_hang_ids[i]),
+                    so_luong=int(so_luongs[i]) if i < len(so_luongs) else 1,
+                    don_gia=int(don_gias[i]) if i < len(don_gias) else 0,
+                )
+                # Tru ton kho
+                if don_hang.trang_thai == 'da_thanh_toan':
+                    ton_kho = TonKho.objects.filter(
+                        cua_hang=cua_hang, mat_hang_id=int(mat_hang_ids[i])
+                    ).first()
+                    if ton_kho:
+                        ton_kho.so_luong = max(0, ton_kho.so_luong - ct.so_luong)
+                        ton_kho.save()
+        don_hang.cap_nhat_tong_tien()
+        messages.success(request, 'Tạo đơn hàng thành công!')
+        return redirect('admin_donhang_list')
+    cua_hangs = CuaHang.objects.all()
+    mat_hangs = MatHang.objects.all()
+    trang_thais = DonHang.TRANG_THAI_CHOICES
+    return render(request, 'admin/donhang_form.html', {
+        'cua_hangs': cua_hangs, 'mat_hangs': mat_hangs, 'trang_thais': trang_thais
+    })
+
+
+@admin_required
+def admin_donhang_detail(request, id):
+    don_hang = get_object_or_404(DonHang, id=id)
+    chi_tiets = don_hang.chi_tiets.select_related('mat_hang').all()
+    return render(request, 'admin/donhang_detail.html', {
+        'don_hang': don_hang, 'chi_tiets': chi_tiets
+    })
+
+
+@admin_required
+def admin_donhang_update(request, id):
+    don_hang = get_object_or_404(DonHang, id=id)
+    if request.method == 'POST':
+        old_trang_thai = don_hang.trang_thai
+        don_hang.cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
+        don_hang.trang_thai = request.POST.get('trang_thai', 'cho_xu_ly')
+        don_hang.ghi_chu = request.POST.get('ghi_chu', '')
+        don_hang.save()
+        # Tru ton kho khi chuyen sang da_thanh_toan
+        if old_trang_thai != 'da_thanh_toan' and don_hang.trang_thai == 'da_thanh_toan':
+            for ct in don_hang.chi_tiets.all():
+                ton_kho = TonKho.objects.filter(
+                    cua_hang=don_hang.cua_hang, mat_hang=ct.mat_hang
+                ).first()
+                if ton_kho:
+                    ton_kho.so_luong = max(0, ton_kho.so_luong - ct.so_luong)
+                    ton_kho.save()
+        messages.success(request, 'Cập nhật đơn hàng thành công!')
+        return redirect('admin_donhang_list')
+    cua_hangs = CuaHang.objects.all()
+    trang_thais = DonHang.TRANG_THAI_CHOICES
+    return render(request, 'admin/donhang_form.html', {
+        'item': don_hang, 'cua_hangs': cua_hangs, 'trang_thais': trang_thais
+    })
+
+
+@admin_required
+def admin_donhang_delete(request, id):
+    muc = get_object_or_404(DonHang, id=id)
+    muc.delete()
+    messages.success(request, 'Xóa đơn hàng thành công!')
+    return redirect('admin_donhang_list')
+
+
+# ====== DOANH THU ======
+
+@admin_required
+def admin_doanhthu(request):
+    from django.db.models import Sum, Count
+    from django.db.models.functions import TruncMonth
+
+    # Loc theo nam
+    nam = request.GET.get('nam', '')
+    don_hangs = DonHang.objects.filter(trang_thai='da_thanh_toan')
+    if nam:
+        don_hangs = don_hangs.filter(ngay_dat__year=int(nam))
+
+    # Doanh thu theo thang
+    doanh_thu_thang = don_hangs.annotate(
+        thang=TruncMonth('ngay_dat')
+    ).values('thang').annotate(
+        tong=Sum('tong_tien'),
+        so_don=Count('id')
+    ).order_by('-thang')
+
+    # Doanh thu theo cua hang
+    doanh_thu_cua_hang = don_hangs.values(
+        'cua_hang__ten_cua_hang', 'cua_hang__id'
+    ).annotate(
+        tong=Sum('tong_tien'),
+        so_don=Count('id')
+    ).order_by('-tong')
+
+    tong_doanh_thu = don_hangs.aggregate(tong=Sum('tong_tien'))['tong'] or 0
+    tong_don_hang = don_hangs.count()
+
+    # Lay danh sach nam co don hang
+    danh_sach_nam = DonHang.objects.filter(
+        trang_thai='da_thanh_toan'
+    ).dates('ngay_dat', 'year', order='DESC')
+
+    return render(request, 'admin/doanhthu.html', {
+        'doanh_thu_thang': doanh_thu_thang,
+        'doanh_thu_cua_hang': doanh_thu_cua_hang,
+        'tong_doanh_thu': tong_doanh_thu,
+        'tong_don_hang': tong_don_hang,
+        'nam_hien_tai': nam,
+        'danh_sach_nam': danh_sach_nam,
+    })
+
+
+@admin_required
+def admin_doanhthu_chitiet(request):
+    from django.db.models import Sum
+
+    don_hangs = DonHang.objects.filter(trang_thai='da_thanh_toan').select_related('cua_hang')
+    tieu_de = 'Chi Tiết Doanh Thu'
+
+    # Loc theo thang (format: YYYY-MM)
+    thang = request.GET.get('thang', '')
+    if thang:
+        parts = thang.split('-')
+        if len(parts) == 2:
+            don_hangs = don_hangs.filter(ngay_dat__year=int(parts[0]), ngay_dat__month=int(parts[1]))
+            tieu_de = f'Chi Tiết Doanh Thu Tháng {parts[1]}/{parts[0]}'
+
+    # Loc theo cua hang
+    cua_hang_id = request.GET.get('cua_hang', '')
+    if cua_hang_id:
+        cua_hang = get_object_or_404(CuaHang, id=cua_hang_id)
+        don_hangs = don_hangs.filter(cua_hang=cua_hang)
+        tieu_de = f'Chi Tiết Doanh Thu - {cua_hang.ten_cua_hang}'
+
+    tong_doanh_thu = don_hangs.aggregate(tong=Sum('tong_tien'))['tong'] or 0
+
+    return render(request, 'admin/doanhthu_chitiet.html', {
+        'don_hangs': don_hangs.order_by('-ngay_dat'),
+        'tieu_de': tieu_de,
+        'tong_doanh_thu': tong_doanh_thu,
+    })
+
+
+# ====== USER: DANG KY, DANG NHAP ======
+
+def user_register(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        password2 = request.POST.get('password2', '')
+        ho_ten = request.POST.get('ho_ten', '').strip()
+        email = request.POST.get('email', '').strip()
+
+        if not username or not password:
+            messages.error(request, 'Vui lòng nhập đầy đủ thông tin!')
+        elif password != password2:
+            messages.error(request, 'Mật khẩu nhập lại không khớp!')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, 'Tên đăng nhập đã tồn tại!')
+        else:
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                email=email,
+            )
+            if ho_ten:
+                parts = ho_ten.split(' ', 1)
+                user.last_name = parts[0]
+                user.first_name = parts[1] if len(parts) > 1 else ''
+                user.save()
+            login(request, user)
+            messages.success(request, f'Đăng ký thành công! Chào {ho_ten or username}!')
+            return redirect('trang_chu')
+    return render(request, 'user/register.html')
+
+
+def user_login(request):
+    if request.user.is_authenticated:
+        return redirect('trang_chu')
+    if request.method == 'POST':
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            messages.success(request, f'Đăng nhập thành công!')
+            next_url = request.GET.get('next', 'trang_chu')
+            return redirect(next_url)
+        else:
+            messages.error(request, 'Sai tên đăng nhập hoặc mật khẩu!')
+    return render(request, 'user/login.html')
+
+
+def user_logout(request):
+    logout(request)
+    messages.success(request, 'Đã đăng xuất!')
+    return redirect('trang_chu')
+
+
+# ====== USER: DAT HANG ======
+
+@login_required(login_url='/dang-nhap/')
+def user_dat_hang(request, cua_hang_id):
+    cua_hang = get_object_or_404(CuaHang, id=cua_hang_id)
+    # Lay san pham con ton kho tai cua hang nay
+    ton_khos = TonKho.objects.filter(cua_hang=cua_hang, so_luong__gt=0).select_related('mat_hang')
+
+    if request.method == 'POST':
+        mat_hang_ids = request.POST.getlist('mat_hang_id')
+        so_luongs = request.POST.getlist('so_luong_sp')
+
+        # Kiem tra ton kho
+        loi = []
+        items = []
+        for i in range(len(mat_hang_ids)):
+            if mat_hang_ids[i]:
+                mh_id = int(mat_hang_ids[i])
+                sl = int(so_luongs[i]) if i < len(so_luongs) and so_luongs[i] else 1
+                if sl <= 0:
+                    continue
+                tk = TonKho.objects.filter(cua_hang=cua_hang, mat_hang_id=mh_id).first()
+                mh = MatHang.objects.filter(id=mh_id).first()
+                if not tk or sl > tk.so_luong:
+                    loi.append(f'{mh.ten_mat_hang if mh else "SP"}: chỉ còn {tk.so_luong if tk else 0}')
+                else:
+                    items.append((mh_id, sl, mh.gia_ban))
+
+        if loi:
+            for l in loi:
+                messages.error(request, f'❌ {l}')
+        elif not items:
+            messages.error(request, 'Vui lòng chọn ít nhất 1 sản phẩm!')
+        else:
+            don_hang = DonHang.objects.create(
+                cua_hang=cua_hang,
+                nguoi_dung=request.user,
+                trang_thai='cho_xu_ly',
+                ghi_chu=request.POST.get('ghi_chu', ''),
+            )
+            for mh_id, sl, gia in items:
+                ChiTietDonHang.objects.create(
+                    don_hang=don_hang,
+                    mat_hang_id=mh_id,
+                    so_luong=sl,
+                    don_gia=gia,
+                )
+            don_hang.cap_nhat_tong_tien()
+            messages.success(request, f'Đặt hàng thành công! Mã đơn: DH-{don_hang.id}')
+            return redirect('user_don_hang')
+
+    return render(request, 'user/dat_hang.html', {
+        'cua_hang': cua_hang,
+        'ton_khos': ton_khos,
+    })
+
+
+@login_required(login_url='/dang-nhap/')
+def user_don_hang(request):
+    don_hangs = DonHang.objects.filter(nguoi_dung=request.user).select_related('cua_hang').order_by('-ngay_dat')
+    return render(request, 'user/don_hang.html', {
+        'don_hangs': don_hangs,
+    })

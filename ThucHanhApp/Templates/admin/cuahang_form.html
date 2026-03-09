@@ -16,7 +16,13 @@
 
         <div class="form-group">
             <label for="dia_chi">Địa Chỉ:</label>
-            <textarea id="dia_chi" name="dia_chi" required>{{ item.dia_chi|default:'' }}</textarea>
+            <div style="display:flex; gap:10px;">
+                <textarea id="dia_chi" name="dia_chi" required style="flex:1;">{{ item.dia_chi|default:'' }}</textarea>
+                <button type="button" class="btn btn-primary" onclick="timDiaChi()" style="white-space:nowrap;">
+                    🔍 Tìm trên bản đồ
+                </button>
+            </div>
+            <small style="color:#666;">Nhập địa chỉ rồi bấm "Tìm trên bản đồ" hoặc click trực tiếp trên bản đồ</small>
         </div>
 
         <div class="form-group">
@@ -24,7 +30,7 @@
             <select id="loai_id" name="loai_id" required>
                 <option value="">-- Chọn loại --</option>
                 {% for loai in loai_cua_hangs %}
-                <option value="{{ loai.id }}" {% if item and item.loai.id==loai.id %}selected{% endif %}>
+                <option value="{{ loai.id }}" {% if item and item.loai.id == loai.id %}selected{% endif %}>
                     {{ loai.ten_loai }}
                 </option>
                 {% endfor %}
@@ -33,15 +39,18 @@
 
         <div class="form-group">
             <label>Vị Trí Trên Bản Đồ:</label>
-            <p><small>Click trên bản đồ để chọn vị trí</small></p>
             <input type="hidden" id="lat" name="lat" value="{% if item.geom %}{{ item.geom.y }}{% endif %}">
             <input type="hidden" id="lng" name="lng" value="{% if item.geom %}{{ item.geom.x }}{% endif %}">
-            <div id="coords-display">
+            <div id="coords-display" style="padding:8px; background:#f0f0f0; border-radius:4px; margin-bottom:10px;">
                 {% if item.geom %}
-                Tọa độ: {{ item.geom.y }}, {{ item.geom.x }}
+                📍 Tọa độ: {{ item.geom.y }}, {{ item.geom.x }}
                 {% else %}
-                Chưa chọn vị trí
+                Chưa chọn vị trí - Nhập địa chỉ hoặc click trên bản đồ
                 {% endif %}
+            </div>
+            <div id="address-display"
+                style="padding:8px; background:#e8f5e9; border-radius:4px; margin-bottom:10px; display:none;">
+                📍 <span id="address-text"></span>
             </div>
         </div>
 
@@ -57,8 +66,8 @@
 
 {% block extra_js %}
 <script>
-    var currentLat = {% if item.geom %}{{ item.geom.y }} {% else %} 16.0544{% endif %};
-    var currentLng = {% if item.geom %}{{ item.geom.x }} {% else %} 108.2022{% endif %};
+    var currentLat = {% if item.geom %}{ { item.geom.y } } {% else %} 16.0544{% endif %};
+    var currentLng = {% if item.geom %}{ { item.geom.x } } {% else %} 108.2022{% endif %};
 
     var map = L.map('map').setView([currentLat, currentLng], 13);
 
@@ -72,17 +81,77 @@
     marker = L.marker([currentLat, currentLng]).addTo(map);
     {% endif %}
 
+    // Click tren ban do -> hien dia chi (Reverse Geocoding)
     map.on('click', function (e) {
+        datMarker(e.latlng.lat, e.latlng.lng);
+        layDiaChi(e.latlng.lat, e.latlng.lng);
+    });
+
+    function datMarker(lat, lng) {
         if (marker) {
             map.removeLayer(marker);
         }
+        marker = L.marker([lat, lng]).addTo(map);
+        document.getElementById('lat').value = lat;
+        document.getElementById('lng').value = lng;
+        document.getElementById('coords-display').innerHTML =
+            '📍 Tọa độ: ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+    }
 
-        marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+    // Reverse Geocoding: toa do -> dia chi
+    function layDiaChi(lat, lng) {
+        var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=vi';
+        fetch(url)
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data && data.display_name) {
+                    document.getElementById('address-display').style.display = 'block';
+                    document.getElementById('address-text').textContent = data.display_name;
+                    // Tu dong dien vao textarea dia chi
+                    document.getElementById('dia_chi').value = data.display_name;
+                }
+            })
+            .catch(function (err) {
+                console.log('Loi geocoding:', err);
+            });
+    }
 
-        document.getElementById('lat').value = e.latlng.lat;
-        document.getElementById('lng').value = e.latlng.lng;
-        document.getElementById('coords-display').textContent =
-            'Tọa độ: ' + e.latlng.lat.toFixed(6) + ', ' + e.latlng.lng.toFixed(6);
+    // Forward Geocoding: dia chi -> toa do
+    function timDiaChi() {
+        var diaChi = document.getElementById('dia_chi').value.trim();
+        if (!diaChi) {
+            alert('Vui lòng nhập địa chỉ trước!');
+            return;
+        }
+
+        var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(diaChi) + '&limit=1&accept-language=vi';
+        fetch(url)
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data && data.length > 0) {
+                    var lat = parseFloat(data[0].lat);
+                    var lng = parseFloat(data[0].lon);
+                    datMarker(lat, lng);
+                    map.setView([lat, lng], 16);
+
+                    // Hien dia chi day du tu Nominatim
+                    document.getElementById('address-display').style.display = 'block';
+                    document.getElementById('address-text').textContent = data[0].display_name;
+                } else {
+                    alert('Không tìm thấy địa chỉ! Thử nhập cụ thể hơn.');
+                }
+            })
+            .catch(function (err) {
+                alert('Lỗi khi tìm địa chỉ: ' + err);
+            });
+    }
+
+    // Cho phep nhan Enter trong dia chi de tim
+    document.getElementById('dia_chi').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            timDiaChi();
+        }
     });
 </script>
 {% endblock %}

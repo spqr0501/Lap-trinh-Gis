@@ -1,0 +1,44 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Nhập{% endif %} Tồn Kho{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>{% if item %}Sửa{% else %}Nhập{% endif %} Tồn Kho</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="cua_hang_id">Cửa Hàng:</label>
+            <select id="cua_hang_id" name="cua_hang_id" required>
+                <option value="">-- Chọn cửa hàng --</option>
+                {% for ch in cua_hangs %}
+                <option value="{{ ch.id }}" {% if item and item.cua_hang.id == ch.id %}selected{% endif %}>
+                    {{ ch.ten_cua_hang }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="mat_hang_id">Mặt Hàng:</label>
+            <select id="mat_hang_id" name="mat_hang_id" required>
+                <option value="">-- Chọn mặt hàng --</option>
+                {% for mh in mat_hangs %}
+                <option value="{{ mh.id }}" {% if item and item.mat_hang.id == mh.id %}selected{% endif %}>
+                    {{ mh.ten_mat_hang }} ({{ mh.gia_ban|floatformat:0 }}đ)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="so_luong">Số Lượng:</label>
+            <input type="number" id="so_luong" name="so_luong" value="{{ item.so_luong|default:0 }}" min="0" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Lưu</button>
+        <a href="{% url 'admin_tonkho_list' %}" class="btn btn-secondary">Hủy</a>
+    </form>
+</div>
+{% endblock %}

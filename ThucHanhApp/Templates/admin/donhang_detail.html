@@ -1,0 +1,63 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Chi Tiết Đơn Hàng DH-{{ don_hang.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Chi Tiết Đơn Hàng: DH-{{ don_hang.id }}</h1>
+
+    <div style="margin-bottom: 20px;">
+        <p><strong>Cửa hàng:</strong> {{ don_hang.cua_hang.ten_cua_hang }}</p>
+        <p><strong>Ngày đặt:</strong> {{ don_hang.ngay_dat|date:"d/m/Y H:i" }}</p>
+        <p><strong>Trạng thái:</strong>
+            {% if don_hang.trang_thai == 'da_thanh_toan' %}
+            <span style="color:green; font-weight:bold;">{{ don_hang.get_trang_thai_display }}</span>
+            {% elif don_hang.trang_thai == 'da_huy' %}
+            <span style="color:red;">{{ don_hang.get_trang_thai_display }}</span>
+            {% else %}
+            <span style="color:orange;">{{ don_hang.get_trang_thai_display }}</span>
+            {% endif %}
+        </p>
+        <p><strong>Ghi chú:</strong> {{ don_hang.ghi_chu|default:"Không có" }}</p>
+    </div>
+
+    <h3>Danh sách sản phẩm</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Mặt Hàng</th>
+                <th>Số Lượng</th>
+                <th>Đơn Giá</th>
+                <th>Thành Tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ct in chi_tiets %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ ct.mat_hang.ten_mat_hang }}</td>
+                <td>{{ ct.so_luong }}</td>
+                <td>{{ ct.don_gia|floatformat:0 }} đ</td>
+                <td>{{ ct.thanh_tien|floatformat:0 }} đ</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align:center;">Không có chi tiết</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align:right; font-weight:bold;">TỔNG CỘNG:</td>
+                <td style="font-weight:bold; color:green;">{{ don_hang.tong_tien|floatformat:0 }} đ</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div style="margin-top: 15px;">
+        <a href="{% url 'admin_donhang_update' don_hang.id %}" class="btn btn-primary">Sửa</a>
+        <a href="{% url 'admin_donhang_list' %}" class="btn btn-secondary">Quay lại</a>
+    </div>
+</div>
+{% endblock %}
