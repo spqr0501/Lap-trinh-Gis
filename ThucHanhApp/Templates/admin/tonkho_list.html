@@ -1,0 +1,68 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Quản Lý Tồn Kho{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Danh Sách Tồn Kho</h1>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <a href="{% url 'admin_tonkho_create' %}" class="btn btn-success">Thêm / Nhập Kho</a>
+
+        <!-- Loc theo cua hang -->
+        <form method="get" style="display:flex; gap:10px; align-items:center;">
+            <label for="cua_hang">Lọc cửa hàng:</label>
+            <select name="cua_hang" id="cua_hang" onchange="this.form.submit()">
+                <option value="">Tất cả cửa hàng</option>
+                {% for ch in cua_hangs %}
+                <option value="{{ ch.id }}" {% if cua_hang_id == ch.id|stringformat:"d" %}selected{% endif %}>
+                    {{ ch.ten_cua_hang }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Cửa Hàng</th>
+                <th>Mặt Hàng</th>
+                <th>Số Lượng</th>
+                <th>Giá Bán</th>
+                <th>Trạng Thái</th>
+                <th>Hành Động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.cua_hang.ten_cua_hang }}</td>
+                <td>{{ item.mat_hang.ten_mat_hang }}</td>
+                <td>{{ item.so_luong }}</td>
+                <td>{{ item.mat_hang.gia_ban|floatformat:0 }} đ</td>
+                <td>
+                    {% if item.so_luong == 0 %}
+                    <span style="color:red; font-weight:bold;">Hết hàng</span>
+                    {% elif item.so_luong < 10 %} <span style="color:orange; font-weight:bold;">Sắp hết</span>
+                        {% else %}
+                        <span style="color:green;">Còn hàng</span>
+                        {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'admin_tonkho_update' item.id %}" class="btn btn-primary">Sửa</a>
+                    <a href="{% url 'admin_tonkho_delete' item.id %}" class="btn btn-danger"
+                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center;">Chưa có dữ liệu</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

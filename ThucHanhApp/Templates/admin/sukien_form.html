@@ -1,37 +1,113 @@
 {% extends 'admin/base_admin.html' %}
-
-{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Sự Kiện{% endblock %}
-
 {% block content %}
-<div class="card">
-    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Sự Kiện</h1>
+
+<div class="container" style="max-width:700px; margin:auto;">
+    <h2 style="margin-bottom:20px;">
+        {% if item %}Chỉnh sửa sự kiện{% else %}Thêm sự kiện{% endif %}
+    </h2>
 
     <form method="post">
         {% csrf_token %}
-        <div class="form-group">
-            <label for="ten_su_kien">Tên Sự Kiện:</label>
-            <input type="text" id="ten_su_kien" name="ten_su_kien" value="{{ item.ten_su_kien|default:'' }}" required>
+
+        <!-- Tên sự kiện -->
+        <div style="margin-bottom:15px;">
+            <label>Tên sự kiện:</label>
+            <input type="text" name="ten_su_kien" class="form-control" value="{{ item.ten_su_kien|default:'' }}"
+                required>
         </div>
 
-        <div class="form-group">
-            <label for="mo_ta">Mô Tả:</label>
-            <textarea id="mo_ta" name="mo_ta">{{ item.mo_ta|default:'' }}</textarea>
+        <!-- Cửa hàng -->
+        <div style="margin-bottom:15px;">
+            <label>Cửa hàng:</label>
+            <select name="cua_hang" class="form-control" required>
+                {% for store in stores %}
+                <option value="{{ store.id }}" {% if item and item.cua_hang.id == store.id %}selected{% endif %}>
+                    {{ store.ten_cua_hang }}
+                </option>
+                {% endfor %}
+            </select>
         </div>
 
-        <div class="form-group">
-            <label for="ngay_bat_dau">Ngày Bắt Đầu:</label>
-            <input type="date" id="ngay_bat_dau" name="ngay_bat_dau"
-                value="{{ item.ngay_bat_dau|date:'Y-m-d'|default:'' }}" required>
+        <!-- Lặp hàng tuần (đặt TRƯỚC ngày bắt đầu/kết thúc) -->
+        <div style="margin-bottom:15px;">
+            <label>
+                <input type="checkbox" id="la_hang_tuan" name="la_hang_tuan" {% if item and item.la_hang_tuan%}checked{% endif %} onchange="toggleHangTuan()" style="width:20px; height:20px;">
+                Lặp hàng tuần
+            </label>
         </div>
 
-        <div class="form-group">
-            <label for="ngay_ket_thuc">Ngày Kết Thúc:</label>
-            <input type="date" id="ngay_ket_thuc" name="ngay_ket_thuc"
-                value="{{ item.ngay_ket_thuc|date:'Y-m-d'|default:'' }}" required>
+        <!-- Ngày bắt đầu / kết thúc (ẩn khi chọn hàng tuần) -->
+        <div id="ngay_div">
+            <div style="margin-bottom:15px;">
+                <label>Ngày bắt đầu:</label>
+                <input type="date" id="ngay_bat_dau" name="ngay_bat_dau" class="form-control"
+                    value="{{ item.ngay_bat_dau|date:'Y-m-d'|default:'' }}">
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label>Ngày kết thúc:</label>
+                <input type="date" id="ngay_ket_thuc" name="ngay_ket_thuc" class="form-control"
+                    value="{{ item.ngay_ket_thuc|date:'Y-m-d'|default:'' }}">
+            </div>
         </div>
 
-        <button type="submit" class="btn btn-success">Lưu</button>
-        <a href="{% url 'admin_sukien_list' %}" class="btn btn-secondary">Hủy</a>
+        <!-- Ngày trong tuần (hiện khi chọn hàng tuần) -->
+        <div id="ngay_trong_tuan_div" style="margin-bottom:15px; display:none;">
+
+            <label>Chọn ngày trong tuần:</label><br>
+
+            {% for day_value, day_name in ngay_choices %}
+            <label style="margin-right:10px;">
+                <input type="checkbox" name="ngay_trong_tuan" value="{{ day_value }}" {% if day_value in ngay_da_chon%}checked{% endif %}>
+                {{ day_name }}
+            </label>
+            {% endfor %}
+        </div>
+
+        <!-- Mô tả -->
+        <div style="margin-bottom:15px;">
+            <label>Mô tả:</label>
+            <textarea name="mo_ta" class="form-control" rows="4">{{ item.mo_ta|default:'' }}</textarea>
+        </div>
+
+        <!-- Nút submit -->
+        <div style="margin-top:20px;">
+            <button type="submit" class="btn btn-primary">
+                {% if item %}Cập nhật{% else %}Thêm mới{% endif %}
+            </button>
+
+            <a href="{% url 'admin_sukien_list' %}" class="btn btn-secondary">
+                Quay lại
+            </a>
+        </div>
+
     </form>
 </div>
+
+<script>
+    function toggleHangTuan() {
+        var checkbox = document.getElementById("la_hang_tuan");
+        var ngayDiv = document.getElementById("ngay_div");
+        var ngayTrongTuanDiv = document.getElementById("ngay_trong_tuan_div");
+
+        if (checkbox.checked) {
+            // Hàng tuần: ẩn ngày bắt đầu/kết thúc, hiện ngày trong tuần
+            ngayDiv.style.display = "none";
+            ngayTrongTuanDiv.style.display = "block";
+            // Xóa required và giá trị
+            document.getElementById("ngay_bat_dau").removeAttribute("required");
+            document.getElementById("ngay_ket_thuc").removeAttribute("required");
+        } else {
+            // Không hàng tuần: hiện ngày bắt đầu/kết thúc, ẩn ngày trong tuần
+            ngayDiv.style.display = "block";
+            ngayTrongTuanDiv.style.display = "none";
+        }
+    }
+
+    // Khi load trang, áp dụng trạng thái hiện tại
+    window.onload = function () {
+        toggleHangTuan();
+    };
+</script>
+
 {% endblock %}

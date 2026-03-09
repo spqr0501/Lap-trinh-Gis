@@ -1,0 +1,54 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Quản Lý Đơn Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Danh Sách Đơn Hàng</h1>
+    <a href="{% url 'admin_donhang_create' %}" class="btn btn-success">Tạo Đơn Hàng</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Mã ĐH</th>
+                <th>Cửa Hàng</th>
+                <th>Ngày Đặt</th>
+                <th>Trạng Thái</th>
+                <th>Tổng Tiền</th>
+                <th>Hành Động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>DH-{{ item.id }}</td>
+                <td>{{ item.cua_hang.ten_cua_hang }}</td>
+                <td>{{ item.ngay_dat|date:"d/m/Y H:i" }}</td>
+                <td>
+                    {% if item.trang_thai == 'da_thanh_toan' %}
+                    <span style="color:green; font-weight:bold;">{{ item.get_trang_thai_display }}</span>
+                    {% elif item.trang_thai == 'da_huy' %}
+                    <span style="color:red;">{{ item.get_trang_thai_display }}</span>
+                    {% elif item.trang_thai == 'dang_giao' %}
+                    <span style="color:blue;">{{ item.get_trang_thai_display }}</span>
+                    {% else %}
+                    <span style="color:orange;">{{ item.get_trang_thai_display }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.tong_tien|floatformat:0 }} đ</td>
+                <td>
+                    <a href="{% url 'admin_donhang_detail' item.id %}" class="btn btn-info">Chi tiết</a>
+                    <a href="{% url 'admin_donhang_update' item.id %}" class="btn btn-primary">Sửa</a>
+                    <a href="{% url 'admin_donhang_delete' item.id %}" class="btn btn-danger"
+                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">Chưa có đơn hàng</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

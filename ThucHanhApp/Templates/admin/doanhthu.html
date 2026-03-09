@@ -1,0 +1,97 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Doanh Thu{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Báo Cáo Doanh Thu</h1>
+
+    <!-- Loc theo nam -->
+    <form method="get" style="margin-bottom: 20px;">
+        <label for="nam">Lọc theo năm:</label>
+        <select name="nam" id="nam" onchange="this.form.submit()">
+            <option value="">Tất cả</option>
+            {% for d in danh_sach_nam %}
+            <option value="{{ d.year }}" {% if nam_hien_tai == d.year|stringformat:"d" %}selected{% endif %}>
+                {{ d.year }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <!-- Tong quan -->
+    <div style="display:flex; gap:20px; margin-bottom:20px;">
+        <div class="card" style="flex:1; text-align:center; padding:15px;">
+            <h3>Tổng Doanh Thu</h3>
+            <p style="font-size:24px; color:green; font-weight:bold;">{{ tong_doanh_thu|floatformat:0 }} đ</p>
+        </div>
+        <div class="card" style="flex:1; text-align:center; padding:15px;">
+            <h3>Số Đơn Hàng</h3>
+            <p style="font-size:24px; color:blue; font-weight:bold;">{{ tong_don_hang }}</p>
+        </div>
+    </div>
+
+    <!-- Doanh thu theo thang -->
+    <h2>Doanh Thu Theo Tháng</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Tháng</th>
+                <th>Số Đơn</th>
+                <th>Doanh Thu</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dt in doanh_thu_thang %}
+            <tr>
+                <td>{{ dt.thang|date:"m/Y" }}</td>
+                <td>{{ dt.so_don }}</td>
+                <td style="color:green; font-weight:bold;">{{ dt.tong|floatformat:0 }} đ</td>
+                <td>
+                    <a href="{% url 'admin_doanhthu_chitiet' %}?thang={{ dt.thang|date:'Y-m' }}"
+                        class="btn btn-primary">
+                        Xem chi tiết
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align:center;">Chưa có dữ liệu</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Doanh thu theo cua hang -->
+    <h2 style="margin-top:20px;">Doanh Thu Theo Cửa Hàng</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Cửa Hàng</th>
+                <th>Số Đơn</th>
+                <th>Tổng Doanh Thu</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dt in doanh_thu_cua_hang %}
+            <tr>
+                <td>{{ dt.cua_hang__ten_cua_hang }}</td>
+                <td>{{ dt.so_don }}</td>
+                <td style="color:green; font-weight:bold;">{{ dt.tong|floatformat:0 }} đ</td>
+                <td>
+                    <a href="{% url 'admin_doanhthu_chitiet' %}?cua_hang={{ dt.cua_hang__id }}" class="btn btn-primary">
+                        Xem chi tiết
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align:center;">Chưa có dữ liệu</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

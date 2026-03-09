@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Đơn Hàng Của Tôi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-cho_xu_ly {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-dang_giao {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-da_thanh_toan {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-da_huy {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .topbar a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .price {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .messages li {
+            list-style: none;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .messages .success {
+            background: #efe;
+            color: #3a3;
+            border: 1px solid #cfc;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="topbar">
+            <a href="{% url 'trang_chu' %}">← Về bản đồ</a>
+            <span>👤 {{ request.user.get_full_name|default:request.user.username }}</span>
+        </div>
+
+        {% if messages %}
+        <ul class="messages">
+            {% for msg in messages %}
+            <li class="{{ msg.tags }}">{{ msg }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="card">
+            <h1>📦 Đơn Hàng Của Tôi</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã ĐH</th>
+                        <th>Cửa Hàng</th>
+                        <th>Ngày Đặt</th>
+                        <th>Tổng Tiền</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dh in don_hangs %}
+                    <tr>
+                        <td>DH-{{ dh.id }}</td>
+                        <td>{{ dh.cua_hang.ten_cua_hang }}</td>
+                        <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
+                        <td class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
+                        <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align:center; color:#999; padding:30px;">Bạn chưa có đơn hàng nào
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,43 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Quản Lý Mặt Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Danh Sách Mặt Hàng</h1>
+    <a href="{% url 'admin_mathang_create' %}" class="btn btn-success">Thêm Mới</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên Mặt Hàng</th>
+                <th>Đơn Vị</th>
+                <th>Giá Bán</th>
+                <th>Mô Tả</th>
+                <th>Hành Động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.ten_mat_hang }}</td>
+                <td>{{ item.don_vi }}</td>
+                <td>{{ item.gia_ban|floatformat:0 }} đ</td>
+                <td>{{ item.mo_ta|truncatewords:10 }}</td>
+                <td>
+                    <a href="{% url 'admin_mathang_update' item.id %}" class="btn btn-primary">Sửa</a>
+                    <a href="{% url 'admin_mathang_delete' item.id %}" class="btn btn-danger"
+                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">Chưa có dữ liệu</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

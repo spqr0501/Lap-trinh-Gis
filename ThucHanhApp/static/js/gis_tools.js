@@ -27,6 +27,7 @@ var dang_chon_diem_bat_dau = false;     // Flag chon diem bat dau
 var dang_chon_diem_ket_thuc = false;    // Flag chon diem ket thuc
 var toa_do_bat_dau = null;              // Toa do diem bat dau [lng, lat]
 var toa_do_ket_thuc = null;             // Toa do diem ket thuc [lng, lat]
+var vong_tron_ban_kinh = null;          // Vong tron vung dem ban kinh
 
 
 // ============================================================================
@@ -282,7 +283,17 @@ function them_dau_hieu_cua_hang() {
                 noi_dung_popup += '<br><strong style="color: #ffc107;">🎉 Có sự kiện!</strong>';
             }
 
-            cua_hang.dau_hieu.bindPopup(noi_dung_popup);
+            noi_dung_popup +=
+                '<br><div style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;">' +
+                '<button onclick="xem_danh_gia(' + cua_hang.id + ', \'' + cua_hang.ten.replace(/'/g, "\\'") + '\')" ' +
+                'style="padding:4px 8px; font-size:0.8rem; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer;">⭐ Đánh Giá</button>' +
+                '<button onclick="mo_form_danh_gia(' + cua_hang.id + ', \'' + cua_hang.ten.replace(/'/g, "\\'") + '\')" ' +
+                'style="padding:4px 8px; font-size:0.8rem; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">✏️ Viết Đánh Giá</button>' +
+                '<a href="/dat-hang/' + cua_hang.id + '/" ' +
+                'style="padding:4px 8px; font-size:0.8rem; background:#ff6b35; color:white; border:none; border-radius:4px; cursor:pointer; text-decoration:none;">🛒 Đặt Hàng</a>' +
+                '</div>';
+
+            cua_hang.dau_hieu.bindPopup(noi_dung_popup, { minWidth: 200 });
         }
     });
 }
@@ -329,6 +340,26 @@ function hien_thi_danh_sach_cua_hang(id_bo_loc, id_danh_sach) {
         return true;
     });
 
+    // Ve/xoa vong tron ban kinh tren ban do
+    if (vong_tron_ban_kinh) {
+        ban_do.removeLayer(vong_tron_ban_kinh);
+        vong_tron_ban_kinh = null;
+    }
+    if (bo_loc_ban_kinh && vi_tri_nguoi_dung) {
+        var ban_kinh_met = parseFloat(bo_loc_ban_kinh) * 1000;
+        vong_tron_ban_kinh = L.circle(
+            [vi_tri_nguoi_dung.vi_do, vi_tri_nguoi_dung.kinh_do],
+            {
+                radius: ban_kinh_met,
+                color: '#667eea',
+                fillColor: '#667eea',
+                fillOpacity: 0.1,
+                weight: 2,
+                dashArray: '5, 10'
+            }
+        ).addTo(ban_do);
+    }
+
     // Cap nhat so luong cua hang tim thay
     if (vi_tri_nguoi_dung && bo_loc_ban_kinh) {
         document.getElementById('found-stores-count').textContent =
@@ -362,6 +393,7 @@ function hien_thi_danh_sach_cua_hang(id_bo_loc, id_danh_sach) {
                 html += '</div>';
             }
 
+            html += '<button onclick="event.stopPropagation(); xem_danh_gia(' + cua_hang.id + ', \'' + cua_hang.ten.replace(/'/g, "\\'") + '\')" style="margin-top:6px; padding:4px 10px; font-size:0.8rem; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer;">⭐ Xem Đánh Giá</button>';
             html += '</div>';
         });
     }
@@ -496,6 +528,11 @@ function dat_diem_bat_dau(vi_do, kinh_do) {
 
     toa_do_bat_dau = [kinh_do, vi_do];
     document.getElementById('start-coords').textContent = vi_do.toFixed(5) + ', ' + kinh_do.toFixed(5);
+
+    // Cap nhat vi tri nguoi dung theo diem xuat phat → tinh lai "Cach ban"
+    vi_tri_nguoi_dung = { vi_do: vi_do, kinh_do: kinh_do };
+    tinh_khoang_cach_cac_cua_hang();
+    hien_thi_danh_sach_cua_hang('type-filter', 'store-list');
 }
 
 
@@ -586,6 +623,18 @@ function calculateRoute() {
                 var khoang_cach = (tuyen_duong.distance / 1000).toFixed(2);
                 var thoi_gian = Math.round(tuyen_duong.duration / 60);
 
+                // Hien thi thong tin ngay tren duong di (giua tuyen duong)
+                var so_diem = toa_do.length;
+                var diem_giua = toa_do[Math.floor(so_diem / 2)];
+                duong_di.bindTooltip(
+                    '📏 ' + khoang_cach + ' km  ⏱️ ' + thoi_gian + ' phút',
+                    {
+                        permanent: true,
+                        direction: 'center',
+                        className: 'route-tooltip'
+                    }
+                ).openTooltip(diem_giua);
+
                 document.getElementById('distance').textContent = khoang_cach + ' km';
                 document.getElementById('duration').textContent = thoi_gian + ' phút';
                 document.getElementById('route-info').style.display = 'block';
@@ -660,4 +709,289 @@ function clearRoute() {
  */
 function filterStores() {
     hien_thi_danh_sach_cua_hang('type-filter', 'store-list');
+}
+
+
+// ============================================================================
+// TIM KIEM DIA CHI - ADDRESS SEARCH (NOMINATIM GEOCODING)
+// ============================================================================
+
+// Bien toan cuc cho tim kiem
+var dau_hieu_tim_kiem = null;    // Marker ket qua tim kiem
+
+/**
+ * Tim dia chi bang Nominatim API (OpenStreetMap Geocoding)
+ * 
+ * GIAI THICH:
+ * - Su dung Nominatim API cua OpenStreetMap (mien phi)
+ * - Nominatim chuyen doi dia chi text thanh toa do (geocoding)
+ * - Hien thi danh sach ket qua de nguoi dung chon
+ * - Uu tien ket qua tai Viet Nam (countrycodes=vn)
+ * 
+ * THAM SO:
+ *   Khong co (lay gia tri tu input #search-address)
+ * 
+ * TRA VE:
+ *   void - Hien thi danh sach ket qua tim kiem
+ * 
+ * VI DU:
+ *   >>> tim_dia_chi();
+ *   // Nhap "29 Hai Phong Da Nang" → hien thi ket qua
+ */
+function tim_dia_chi() {
+    var dia_chi = document.getElementById('search-address').value.trim();
+    if (!dia_chi) {
+        alert('Vui lòng nhập địa chỉ cần tìm');
+        return;
+    }
+
+    var ket_qua_div = document.getElementById('search-results');
+    ket_qua_div.innerHTML = '<div class="loading">Đang tìm kiếm...</div>';
+
+    // Goi Nominatim API
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' +
+        encodeURIComponent(dia_chi) +
+        '&countrycodes=vn&limit=5&addressdetails=1';
+
+    fetch(url, {
+        headers: {
+            'Accept-Language': 'vi'
+        }
+    })
+        .then(function (response) { return response.json(); })
+        .then(function (du_lieu) {
+            if (du_lieu.length === 0) {
+                ket_qua_div.innerHTML = '<div class="loading">Không tìm thấy địa chỉ</div>';
+                return;
+            }
+
+            // Hien thi danh sach ket qua
+            var html = '';
+            du_lieu.forEach(function (ket_qua, chi_so) {
+                html += '<div class="store-item" style="cursor:pointer; padding: 8px; margin: 3px 0; background: #f8f9fa; border-radius: 5px; border-left: 3px solid #667eea;" ' +
+                    'onclick="chon_dia_chi(' + ket_qua.lat + ', ' + ket_qua.lon + ', \'' + ket_qua.display_name.replace(/'/g, "\\'") + '\')">' +
+                    '<div style="font-size: 0.85rem;">' + ket_qua.display_name + '</div>' +
+                    '</div>';
+            });
+            ket_qua_div.innerHTML = html;
+        })
+        .catch(function (loi) {
+            console.error('Loi tim kiem:', loi);
+            ket_qua_div.innerHTML = '<div class="loading">Lỗi khi tìm kiếm</div>';
+        });
+}
+
+
+/**
+ * Chon dia chi tu ket qua tim kiem
+ * 
+ * GIAI THICH:
+ * - Di chuyen ban do den vi tri da chon
+ * - Them marker do tai vi tri
+ * - Hien thi popup voi ten dia chi
+ * - Xoa marker tim kiem cu (neu co)
+ * 
+ * THAM SO:
+ *   @param {number} vi_do - Vi do cua dia chi
+ *   @param {number} kinh_do - Kinh do cua dia chi
+ *   @param {string} ten_dia_chi - Ten hien thi cua dia chi
+ * 
+ * TRA VE:
+ *   void - Di chuyen ban do va them marker
+ * 
+ * VI DU:
+ *   >>> chon_dia_chi(16.0544, 108.2022, "29 Hai Phong, Da Nang");
+ */
+function chon_dia_chi(vi_do, kinh_do, ten_dia_chi) {
+    // Xoa marker cu
+    if (dau_hieu_tim_kiem) ban_do.removeLayer(dau_hieu_tim_kiem);
+
+    // Di chuyen ban do
+    ban_do.setView([vi_do, kinh_do], 16);
+
+    // Them marker
+    dau_hieu_tim_kiem = L.marker([vi_do, kinh_do], {
+        icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        })
+    }).addTo(ban_do);
+    dau_hieu_tim_kiem.bindPopup('<b>Kết quả tìm kiếm</b><br>' + ten_dia_chi).openPopup();
+
+    // SET LAM DIEM XUAT PHAT ROUTING
+    vi_tri_nguoi_dung = { vi_do: parseFloat(vi_do), kinh_do: parseFloat(kinh_do) };
+    dat_diem_bat_dau(parseFloat(vi_do), parseFloat(kinh_do));
+
+    // Tinh lai khoang cach den cac cua hang
+    tinh_khoang_cach_cac_cua_hang();
+    hien_thi_danh_sach_cua_hang('type-filter', 'store-list');
+
+    // Cap nhat UI vi tri
+    document.getElementById('user-coords').textContent =
+        parseFloat(vi_do).toFixed(5) + ', ' + parseFloat(kinh_do).toFixed(5);
+    document.getElementById('user-location-info').style.display = 'block';
+
+    // Xoa ket qua tim kiem
+    document.getElementById('search-results').innerHTML = '';
+    document.getElementById('search-address').value = '';
+}
+// ============================================================================
+// PANEL DANH GIA - REVIEW PANEL
+// ============================================================================
+
+function xem_danh_gia(cua_hang_id, ten_cua_hang) {
+    // Mo panel
+    document.getElementById('review-panel-title').textContent = '⭐ ' + ten_cua_hang;
+    document.getElementById('review-panel-body').innerHTML = '<div class="loading">Đang tải đánh giá...</div>';
+    document.getElementById('review-panel').classList.add('open');
+    document.getElementById('overlay').classList.add('open');
+
+    // Goi API lay danh gia
+    fetch('/api/danh-gia/' + cua_hang_id + '/')
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            var html = '';
+
+            // Tong quan
+            if (data.so_danh_gia === 0) {
+                html = '<div class="review-empty">📝 Chưa có đánh giá nào</div>';
+            } else {
+                var sao_trung_binh = '';
+                for (var i = 1; i <= 5; i++) {
+                    sao_trung_binh += i <= Math.round(data.trung_binh) ? '★' : '☆';
+                }
+                html += '<div class="review-summary">';
+                html += '<div class="review-avg">' + data.trung_binh + '</div>';
+                html += '<div class="review-stars">' + sao_trung_binh + '</div>';
+                html += '<div class="review-count">' + data.so_danh_gia + ' đánh giá</div>';
+                html += '</div>';
+
+                // Danh sach danh gia
+                data.danh_gias.forEach(function (dg) {
+                    var sao = '';
+                    for (var i = 1; i <= 5; i++) {
+                        sao += i <= dg.diem ? '★' : '☆';
+                    }
+                    html += '<div class="review-item">';
+                    html += '<div class="review-item-header">';
+                    html += '<span class="review-item-stars">' + sao + '</span>';
+                    html += '<span class="review-item-date">' + dg.ngay + '</span>';
+                    html += '</div>';
+                    if (dg.nhan_xet) {
+                        html += '<div class="review-item-text">' + dg.nhan_xet + '</div>';
+                    }
+                    html += '</div>';
+                });
+            }
+
+            document.getElementById('review-panel-body').innerHTML = html;
+        })
+        .catch(function () {
+            document.getElementById('review-panel-body').innerHTML = '<div class="review-empty">Lỗi khi tải đánh giá</div>';
+        });
+}
+
+function dong_panel_danh_gia() {
+    document.getElementById('review-panel').classList.remove('open');
+    document.getElementById('overlay').classList.remove('open');
+}
+
+
+// Mo form viet danh gia trong panel ben phai
+function mo_form_danh_gia(cua_hang_id, ten_cua_hang) {
+    document.getElementById('review-panel-title').textContent = '✏️ Viết Đánh Giá - ' + ten_cua_hang;
+    document.getElementById('review-panel').classList.add('open');
+    document.getElementById('overlay').classList.add('open');
+
+    var html = '<div style="padding: 0.5rem 0;">';
+
+    // Chon so sao
+    html += '<div style="margin-bottom: 1rem;">';
+    html += '<label style="font-weight:bold; display:block; margin-bottom:6px;">Số sao:</label>';
+    html += '<div id="sao-chon" style="font-size:2rem; color:#ccc; cursor:pointer;">';
+    for (var i = 1; i <= 5; i++) {
+        html += '<span data-sao="' + i + '" onclick="chon_sao(' + i + ')" onmouseover="hover_sao(' + i + ')" onmouseout="reset_sao()">☆</span>';
+    }
+    html += '</div>';
+    html += '<input type="hidden" id="gia-tri-sao" value="0">';
+    html += '</div>';
+
+    // Nhap nhan xet
+    html += '<div style="margin-bottom: 1rem;">';
+    html += '<label style="font-weight:bold; display:block; margin-bottom:6px;">Nhận xét:</label>';
+    html += '<textarea id="nhan-xet-input" rows="4" style="width:100%; padding:0.6rem; border:2px solid #e1e8ed; border-radius:5px; font-size:0.9rem; resize:vertical;" placeholder="Nhập nhận xét của bạn..."></textarea>';
+    html += '</div>';
+
+    // Nut gui
+    html += '<button onclick="gui_danh_gia(' + cua_hang_id + ')" style="width:100%; padding:0.7rem; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:5px; font-size:1rem; cursor:pointer; font-weight:bold;">Gửi Đánh Giá</button>';
+    html += '<div id="thong-bao-danh-gia" style="margin-top:0.7rem; text-align:center;"></div>';
+
+    html += '</div>';
+    document.getElementById('review-panel-body').innerHTML = html;
+}
+
+// Tuong tac chon sao
+function hover_sao(n) {
+    var spans = document.querySelectorAll('#sao-chon span');
+    spans.forEach(function (s, i) {
+        s.textContent = i < n ? '★' : '☆';
+        s.style.color = i < n ? '#f39c12' : '#ccc';
+    });
+}
+
+function chon_sao(n) {
+    document.getElementById('gia-tri-sao').value = n;
+    hover_sao(n);
+}
+
+function reset_sao() {
+    var gia_tri = parseInt(document.getElementById('gia-tri-sao').value);
+    hover_sao(gia_tri);
+}
+
+// Gui danh gia len server
+function gui_danh_gia(cua_hang_id) {
+    var diem = parseInt(document.getElementById('gia-tri-sao').value);
+    var nhan_xet = document.getElementById('nhan-xet-input').value.trim();
+    var thong_bao = document.getElementById('thong-bao-danh-gia');
+
+    if (diem < 1) {
+        thong_bao.innerHTML = '<span style="color:red;">⚠️ Vui lòng chọn số sao!</span>';
+        return;
+    }
+
+    thong_bao.innerHTML = '<span style="color:#667eea;">Đang gửi...</span>';
+
+    fetch('/api/gui-danh-gia/' + cua_hang_id + '/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': lay_csrf_token() },
+        body: JSON.stringify({ diem: diem, nhan_xet: nhan_xet })
+    })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.thanh_cong) {
+                thong_bao.innerHTML = '<span style="color:green;">✅ Cảm ơn bạn đã đánh giá!</span>';
+                setTimeout(function () { dong_panel_danh_gia(); }, 1500);
+            } else {
+                thong_bao.innerHTML = '<span style="color:red;">❌ ' + (data.loi || 'Lỗi') + '</span>';
+            }
+        })
+        .catch(function () {
+            thong_bao.innerHTML = '<span style="color:red;">❌ Lỗi kết nối</span>';
+        });
+}
+
+// Lay CSRF token tu cookie de gui POST request an toan
+function lay_csrf_token() {
+    var name = 'csrftoken';
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+        var c = cookies[i].trim();
+        if (c.startsWith(name + '=')) return c.substring(name.length + 1);
+    }
+    return '';
 }

@@ -13,7 +13,7 @@
             <select id="cua_hang_id" name="cua_hang_id" required>
                 <option value="">-- Chọn cửa hàng --</option>
                 {% for ch in cua_hangs %}
-                <option value="{{ ch.id }}" {% if item and item.cua_hang.id==ch.id %}selected{% endif %}>
+                <option value="{{ ch.id }}" {% if item and item.cua_hang.id == ch.id %}selected{% endif %}>
                     {{ ch.ten_cua_hang }}
                 </option>
                 {% endfor %}
@@ -24,7 +24,7 @@
             <label for="diem">Điểm (1-5):</label>
             <select id="diem" name="diem" required>
                 {% for i in "12345" %}
-                <option value="{{ forloop.counter }}" {% if item and item.diem==forloop.counter %}selected{% endif %}>
+                <option value="{{ forloop.counter }}" {% if item and item.diem == forloop.counter %}selected{% endif %}>
                     {{ forloop.counter }} sao
                 </option>
                 {% endfor %}
