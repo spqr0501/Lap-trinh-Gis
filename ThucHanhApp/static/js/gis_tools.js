@@ -178,7 +178,16 @@ function tim_vi_tri_nguoi_dung() {
  *   >>> var my_map = khoi_tao_ban_do('map', 16.0544, 108.2022, 13);
  */
 function khoi_tao_ban_do(id_container, vi_do, kinh_do, muc_zoom) {
-    ban_do = L.map(id_container).setView([vi_do, kinh_do], muc_zoom);
+    // Gioi han ban do trong pham vi Viet Nam
+    var viet_nam_bounds = L.latLngBounds(
+        L.latLng(8.18, 102.14),   // Goc Tay Nam
+        L.latLng(23.39, 109.46)   // Goc Dong Bac
+    );
+
+    ban_do = L.map(id_container, {
+        maxBounds: viet_nam_bounds.pad(0.1),
+        minZoom: 5
+    }).setView([vi_do, kinh_do], muc_zoom);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -601,7 +610,56 @@ function calculateRoute() {
         return;
     }
 
-    var url = `https://router.project-osrm.org/route/v1/driving/${toa_do_bat_dau[0]},${toa_do_bat_dau[1]};${toa_do_ket_thuc[0]},${toa_do_ket_thuc[1]}?overview=full&geometries=geojson`;
+    // Tao danh sach toa do cho OSRM (bat dau + waypoints + ket thuc)
+    // Neu khoang cach lon (> 300km), them waypoints doc theo Viet Nam de route khong di qua nuoc khac
+    var coords_str = toa_do_bat_dau[0] + ',' + toa_do_bat_dau[1];
+
+    var lat_start = toa_do_bat_dau[1];
+    var lat_end = toa_do_ket_thuc[1];
+    var kc = Math.abs(lat_start - lat_end);
+
+    if (kc > 3) {
+        // Waypoints doc theo QL1A Viet Nam (kinh do ~106-108)
+        var waypoints_vn = [
+            [106.68, 10.78],   // TPHCM
+            [106.60, 11.95],   // Binh Duong
+            [107.60, 12.25],   // Dak Lak
+            [108.05, 12.68],   // Ninh Thuan
+            [108.23, 13.77],   // Binh Dinh
+            [108.22, 14.47],   // Quang Ngai
+            [108.22, 15.88],   // Da Nang
+            [107.59, 16.46],   // Hue
+            [106.60, 16.85],   // Quang Tri
+            [106.32, 17.47],   // Quang Binh
+            [106.27, 18.67],   // Nghe An - Vinh
+            [105.78, 19.80],   // Thanh Hoa
+            [105.85, 20.94],   // Ninh Binh
+            [105.85, 21.03],   // Ha Noi
+        ];
+
+        // Loc waypoints nam giua 2 diem (theo lat)
+        var lat_min = Math.min(lat_start, lat_end);
+        var lat_max = Math.max(lat_start, lat_end);
+
+        var wp_filtered = waypoints_vn.filter(function (wp) {
+            return wp[1] > lat_min + 0.5 && wp[1] < lat_max - 0.5;
+        });
+
+        // Sap xep waypoints theo huong di
+        if (lat_start > lat_end) {
+            wp_filtered.sort(function (a, b) { return b[1] - a[1]; });
+        } else {
+            wp_filtered.sort(function (a, b) { return a[1] - b[1]; });
+        }
+
+        for (var i = 0; i < wp_filtered.length; i++) {
+            coords_str += ';' + wp_filtered[i][0] + ',' + wp_filtered[i][1];
+        }
+    }
+
+    coords_str += ';' + toa_do_ket_thuc[0] + ',' + toa_do_ket_thuc[1];
+
+    var url = 'https://router.project-osrm.org/route/v1/driving/' + coords_str + '?overview=full&geometries=geojson';
 
     fetch(url)
         .then(response => response.json())

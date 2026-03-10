@@ -225,27 +225,9 @@
     </div>
 
     <script>
-        function toggleRow(checkbox, idx) {
-            var mhInput = document.getElementById('mh_' + idx);
-            var slInput = document.getElementById('sl_' + idx);
-            if (checkbox.checked) {
-                mhInput.value = '{{ ton_khos|length }}' != '0' ? getMatHangId(idx) : '';
-                slInput.disabled = false;
-                slInput.value = 1;
-            } else {
-                mhInput.value = '';
-                slInput.disabled = true;
-                slInput.value = 0;
-            }
-        }
-
         // Inject mat_hang IDs from template
-        var matHangIds = [{% for tk in ton_khos %}{ { tk.mat_hang.id } } {% if not forloop.last %}, {% endif %} {% endfor %}];
-        function getMatHangId(idx) {
-            return matHangIds[idx] || '';
-        }
+        var matHangIds = [{% for tk in ton_khos %} {{ tk.mat_hang.id }} {% if not forloop.last %}, {% endif %} {% endfor %}];
 
-        // Set mat_hang_id when checkbox checked
         function toggleRow(checkbox, idx) {
             var mhInput = document.getElementById('mh_' + idx);
             var slInput = document.getElementById('sl_' + idx);
