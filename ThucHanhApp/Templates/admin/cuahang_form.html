@@ -66,8 +66,8 @@
 
 {% block extra_js %}
 <script>
-    var currentLat = {% if item.geom %}{ { item.geom.y } } {% else %} 16.0544{% endif %};
-    var currentLng = {% if item.geom %}{ { item.geom.x } } {% else %} 108.2022{% endif %};
+    var currentLat = {% if item.geom %}{{ item.geom.y }} {% else %} 16.0544{% endif %};
+    var currentLng = {% if item.geom %}{{ item.geom.x }} {% else %} 108.2022{% endif %};
 
     var map = L.map('map').setView([currentLat, currentLng], 13);
 

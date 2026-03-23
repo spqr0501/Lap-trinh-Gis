@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
     <title>Bản Đồ Cửa Hàng - Tìm Đường</title>
 
     <!-- Leaflet CSS -->
@@ -607,11 +608,9 @@ du_lieu_cua_hang = [
     ],
     "khoang_cach": null,
     "dau_hieu": null
-}
-{% if not forloop.last %}, {% endif %}
+}{% if not forloop.last %}, {% endif %}
 {% endfor %}
 ];
-
         // Khoi tao ban do khi DOM da san sang
         document.addEventListener('DOMContentLoaded', function () {
             // Khoi tao ban do tai Da Nang

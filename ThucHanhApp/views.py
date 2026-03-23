@@ -8,7 +8,8 @@ from .models import LoaiCuaHang, CuaHang, DanhGia, SuKien, CuaHangSuKien, MatHan
 from django.contrib.auth.models import User
 from .utils.gis_tools import CongCuGIS, khoang_cach_km
 from functools import wraps
-
+from django.http import HttpResponse
+from django.core.mail import send_mail
 
 # Decorator cho cac view danh cho admin
 def admin_required(view_func):
@@ -71,7 +72,7 @@ def trang_chu(request):
     # Chuan bi du lieu cua hang kem theo su kien
     du_lieu_cua_hang = []
     for cua_hang in danh_sach_cua_hang:
-        danh_sach_su_kien = [cs.su_kien for cs in cua_hang.su_kiens.all()]
+        danh_sach_su_kien = [cs.su_kien for cs in cua_hang.su_kiens.all() if cs.su_kien.dang_dien_ra]
         du_lieu_cua_hang.append({
             'store': cua_hang,
             'events': danh_sach_su_kien,
@@ -1281,6 +1282,21 @@ def admin_donhang_update(request, id):
                 if ton_kho:
                     ton_kho.so_luong = max(0, ton_kho.so_luong - ct.so_luong)
                     ton_kho.save()
+                    
+        # Gui email thong bao neu trang thai thay doi
+        if old_trang_thai != don_hang.trang_thai and don_hang.nguoi_dung and don_hang.nguoi_dung.email:
+            try:
+                tt_display = don_hang.get_trang_thai_display()
+                send_mail(
+                    subject=f'Cập nhật trạng thái đơn hàng [DH-{don_hang.id}]',
+                    message=f'Xin chào {don_hang.nguoi_dung.first_name or don_hang.nguoi_dung.username},\n\nĐơn hàng DH-{don_hang.id} của bạn tại {don_hang.cua_hang.ten_cua_hang} vừa được cập nhật trạng thái mới:\n\nTrạng thái hiện tại: {tt_display}\n\nCảm ơn bạn đã sử dụng hệ thống!',
+                    from_email='admin@webgis.com',
+                    recipient_list=[don_hang.nguoi_dung.email],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                print(f"Loi gui email cap nhat don hang: {e}")
+
         messages.success(request, 'Cập nhật đơn hàng thành công!')
         return redirect('admin_donhang_list')
     cua_hangs = CuaHang.objects.all()
@@ -1390,22 +1406,37 @@ def user_register(request):
             messages.error(request, 'Vui lòng nhập đầy đủ thông tin!')
         elif password != password2:
             messages.error(request, 'Mật khẩu nhập lại không khớp!')
-        elif User.objects.filter(username=username).exists():
+        elif User.objects.filter(username__iexact=username).exists():
             messages.error(request, 'Tên đăng nhập đã tồn tại!')
         else:
-            user = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-            )
-            if ho_ten:
-                parts = ho_ten.split(' ', 1)
-                user.last_name = parts[0]
-                user.first_name = parts[1] if len(parts) > 1 else ''
-                user.save()
-            login(request, user)
-            messages.success(request, f'Đăng ký thành công! Chào {ho_ten or username}!')
-            return redirect('trang_chu')
+            try:
+                user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    email=email,
+                )
+                if ho_ten:
+                    user.first_name = ho_ten
+                    user.save()
+                login(request, user)
+                
+                # Gui email chao mung
+                if email:
+                    try:
+                        send_mail(
+                            subject='Chào mừng bạn đến với WebGIS Cửa Hàng!',
+                            message=f'Xin chào {ho_ten or username},\n\nCảm ơn bạn đã đăng ký tài khoản trên hệ thống WebGIS Cửa Hàng của chúng tôi!\n\nChúc bạn có những trải nghiệm tuyệt vời cùng bản đồ GIS.',
+                            from_email='admin@webgis.com',
+                            recipient_list=[email],
+                            fail_silently=True,
+                        )
+                    except Exception as e:
+                        print(f"Loi gui email chao mung: {e}")
+
+                messages.success(request, f'Đăng ký thành công! Chào {ho_ten or username}!')
+                return redirect('trang_chu')
+            except Exception:
+                messages.error(request, 'Tên đăng nhập đã tồn tại!')
     return render(request, 'user/register.html')
 
 
@@ -1480,6 +1511,27 @@ def user_dat_hang(request, cua_hang_id):
                     don_gia=gia,
                 )
             don_hang.cap_nhat_tong_tien()
+
+            # Gui email don hang
+            if request.user.email:
+                try:
+                    chi_tiet_list = []
+                    for mh_id, sl, gia in items:
+                        mh = MatHang.objects.filter(id=mh_id).first()
+                        ten_mh = mh.ten_mat_hang if mh else f"Sản phẩm #{mh_id}"
+                        chi_tiet_list.append(f"- {ten_mh} (SL: {sl}): {gia * sl:,.0f} đ")
+                    chi_tiet_str = "\n".join(chi_tiet_list)
+
+                    send_mail(
+                        subject=f'Xác nhận đơn hàng [DH-{don_hang.id}]',
+                        message=f'Xin chào {request.user.first_name or request.user.username},\n\nBạn đã đặt hàng thành công tại {cua_hang.ten_cua_hang}.\n\nChi tiết đơn hàng:\n{chi_tiet_str}\n\nTổng tiền: {don_hang.tong_tien:,.0f} đ\n\nCảm ơn bạn đã tin tưởng dịch vụ!',
+                        from_email='admin@webgis.com',
+                        recipient_list=[request.user.email],
+                        fail_silently=True,
+                    )
+                except Exception as e:
+                    print(f"Loi gui email don hang: {e}")
+
             messages.success(request, f'Đặt hàng thành công! Mã đơn: DH-{don_hang.id}')
             return redirect('user_don_hang')
 
