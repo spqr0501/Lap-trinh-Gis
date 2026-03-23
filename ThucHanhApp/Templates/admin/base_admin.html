@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer-when-downgrade">
     <title>{% block title %}Admin{% endblock %}</title>
 
     <!-- Leaflet CSS -->
@@ -48,6 +49,91 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Search & Sort cho tat ca list pages -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // === SEARCH ===
+            var searchInput = document.querySelector('.search-box');
+            if (searchInput) {
+                var table = document.querySelector('table');
+                if (table) {
+                    searchInput.addEventListener('input', function () {
+                        var filter = this.value.toLowerCase();
+                        var rows = table.querySelectorAll('tbody tr');
+                        rows.forEach(function (row) {
+                            var text = row.textContent.toLowerCase();
+                            row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+                        });
+                    });
+                }
+            }
+            // === SORT ===
+            var table = document.querySelector('table');
+            if (table && table.querySelector('thead')) {
+                var headers = table.querySelectorAll('th');
+                headers.forEach(function (th, index) {
+                    if (th.textContent.trim() === 'Hành Động') return;
+
+                    // Thêm biểu tượng sort mặc định
+                    th.innerHTML = th.innerHTML + ' <span class="sort-icon" style="color:#aaa; font-size:0.8em; margin-left:4px;">↕</span>';
+                    th.style.cursor = 'pointer';
+                    th.title = 'Nhấn để sắp xếp (Cao->Thấp / Thấp->Cao)';
+                    th.setAttribute('data-sort-dir', 'none');
+
+                    th.addEventListener('click', function () {
+                        var dir = th.getAttribute('data-sort-dir');
+                        var newDir = dir === 'asc' ? 'desc' : 'asc';
+
+                        // Reset biểu tượng của tất cả các cột
+                        headers.forEach(function (h) {
+                            var icon = h.querySelector('.sort-icon');
+                            if (icon) {
+                                icon.textContent = '↕';
+                                icon.style.color = '#aaa';
+                            }
+                            h.setAttribute('data-sort-dir', 'none');
+                        });
+
+                        // Cập nhật cột hiện tại
+                        th.setAttribute('data-sort-dir', newDir);
+                        var currentIcon = th.querySelector('.sort-icon');
+                        if (currentIcon) {
+                            currentIcon.textContent = newDir === 'asc' ? '▲' : '▼';
+                            currentIcon.style.color = '#333';
+                        }
+
+                        // Sắp xếp các hàng
+                        var tbody = table.querySelector('tbody');
+                        var rows = Array.from(tbody.querySelectorAll('tr'));
+
+                        // Bỏ qua hang "Chưa có dữ liệu" (có span > 1)
+                        if (rows.length === 1 && rows[0].querySelector('td').colSpan > 1) return;
+
+                        rows.sort(function (a, b) {
+                            var aVal = a.children[index] ? a.children[index].textContent.replace('▲', '').replace('▼', '').replace('↕', '').trim() : '';
+                            var bVal = b.children[index] ? b.children[index].textContent.replace('▲', '').replace('▼', '').replace('↕', '').trim() : '';
+
+                            // Xu ly cho ID (VD: DH-15 -> 15)
+                            var aStr = aVal.replace(/[^\d.-]/g, '');
+                            var bStr = bVal.replace(/[^\d.-]/g, '');
+
+                            if (aStr !== '' && bStr !== '') {
+                                var aNum = parseFloat(aStr);
+                                var bNum = parseFloat(bStr);
+                                if (!isNaN(aNum) && !isNaN(bNum)) {
+                                    return newDir === 'asc' ? aNum - bNum : bNum - aNum;
+                                }
+                            }
+
+                            return newDir === 'asc' ? aVal.localeCompare(bVal, 'vi') : bVal.localeCompare(aVal, 'vi');
+                        });
+                        rows.forEach(function (row) { tbody.appendChild(row); });
+                    });
+                });
+            }
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

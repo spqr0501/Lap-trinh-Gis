@@ -76,6 +76,17 @@ class SuKien(models.Model):
         verbose_name_plural = 'Sự kiện'
         ordering = ['-ngay_bat_dau']
 
+    @property
+    def dang_dien_ra(self):
+        from datetime import date
+        today = date.today()
+        if self.la_hang_tuan:
+            return today.weekday() in self.get_ngay_trong_tuan_list()
+        else:
+            if not self.ngay_bat_dau or not self.ngay_ket_thuc:
+                return False
+            return self.ngay_bat_dau <= today <= self.ngay_ket_thuc
+
     def get_ngay_trong_tuan_list(self):
         """Tra ve danh sach cac ngay trong tuan da chon (list of int)"""
         if not self.ngay_trong_tuan:
