@@ -29,6 +29,124 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
+        .layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .history-card {
+            width: 320px;
+            max-width: 100%;
+        }
+
+        .order-card {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-title {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .history-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .history-tab-button {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #f1f3f5;
+            cursor: pointer;
+            font-weight: 700;
+            color: #555;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .history-tab-button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .history-tab-content {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .history-tab-content.active {
+            display: block;
+        }
+
+        .history-list {
+            max-height: 420px;
+            overflow: auto;
+            padding-right: 6px;
+        }
+
+        .history-empty {
+            color: #999;
+            padding: 18px 0;
+            text-align: center;
+        }
+
+        .history-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item .history-item-store {
+            font-weight: 800;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .history-item .history-item-meta {
+            font-size: 0.9rem;
+            color: #777;
+            margin-bottom: 6px;
+        }
+
+        .history-item .history-item-text {
+            font-size: 0.95rem;
+            color: #444;
+        }
+
+        .history-actions {
+            margin-top: 6px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .history-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .history-btn-open {
+            background: #eef2ff;
+            color: #4a56e2;
+        }
+
+        .history-btn-fav {
+            background: #fff8e1;
+            color: #9c6b00;
+        }
+
         h1 {
             color: #333;
             margin-bottom: 20px;
@@ -57,6 +175,8 @@
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
+            white-space: nowrap;
+            display: inline-block;
         }
 
         .status-cho_xu_ly {
@@ -116,7 +236,7 @@
     <div class="container">
         <div class="topbar">
             <a href="{% url 'trang_chu' %}">← Về bản đồ</a>
-            <span>👤 {{ request.user.get_full_name|default:request.user.username }}</span>
+            <span>👤 {% if request.user.last_name %}{{ request.user.last_name }} {% endif %}{% if request.user.first_name %}{{ request.user.first_name }}{% else %}{{ request.user.username }}{% endif %}</span>
         </div>
 
         {% if messages %}
@@ -127,37 +247,243 @@
         </ul>
         {% endif %}
 
-        <div class="card">
-            <h1>📦 Đơn Hàng Của Tôi</h1>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Mã ĐH</th>
-                        <th>Cửa Hàng</th>
-                        <th>Ngày Đặt</th>
-                        <th>Tổng Tiền</th>
-                        <th>Trạng Thái</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for dh in don_hangs %}
-                    <tr>
-                        <td>DH-{{ dh.id }}</td>
-                        <td>{{ dh.cua_hang.ten_cua_hang }}</td>
-                        <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
-                        <td class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
-                        <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span></td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" style="text-align:center; color:#999; padding:30px;">Bạn chưa có đơn hàng nào
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="layout">
+            <div class="card history-card">
+                <div class="history-title">🕘 Lịch Sử</div>
+
+                <div class="history-tabs">
+                    <button
+                        id="tab-danh-gia"
+                        class="history-tab-button active"
+                        onclick="showHistoryTab('danh_gia')"
+                        type="button">Lịch sử đánh giá</button>
+                    <button
+                        id="tab-tim-kiem"
+                        class="history-tab-button"
+                        onclick="showHistoryTab('tim_kiem')"
+                        type="button">Lịch sử tìm kiếm</button>
+                </div>
+
+                <div id="history-danh-gia" class="history-tab-content active">
+                    {% if review_history %}
+                        <div class="history-list">
+                            {% for dg in review_history %}
+                            <div class="history-item">
+                                <div class="history-item-store">{{ dg.cua_hang.ten_cua_hang }}</div>
+                                <div class="history-item-meta">
+                                    <span>
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %} 
+                                        {% endfor %}
+                                    </span>
+                                    <span> • {{ dg.ngay_danh_gia|date:"d/m/Y" }}</span>
+                                </div>
+                                {% if dg.nhan_xet %}
+                                    <div class="history-item-text">{{ dg.nhan_xet|truncatewords:20 }}</div>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                                <div class="history-empty">Chưa có lịch sử đánh giá</div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="history-empty">Chưa có lịch sử đánh giá</div>
+                    {% endif %}
+                </div>
+
+                <div id="history-tim-kiem" class="history-tab-content">
+                    <div style="margin-bottom:8px; display:flex; justify-content:flex-end;">
+                        <button class="history-btn history-btn-fav" type="button" onclick="xoaTatCaLichSu()">Xóa tất cả</button>
+                    </div>
+                    <div id="search-history-list" class="history-list">
+                        <div class="history-empty">Đang tải lịch sử...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card order-card">
+                <h1>📦 Đơn Hàng Của Tôi</h1>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã ĐH</th>
+                            <th>Cửa Hàng</th>
+                            <th>Ngày Đặt</th>
+                            <th>Tổng Tiền</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dh in don_hangs %}
+                        <tr>
+                            <td>DH-{{ dh.id }}</td>
+                            <td>{{ dh.cua_hang.ten_cua_hang }}</td>
+                            <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
+                            <td class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
+                            <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" style="text-align:center; color:#999; padding:30px;">Bạn chưa có đơn hàng nào
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+
+    <script>
+        var renderedSearchHistory = [];
+        var HISTORY_KEY = 'webgis_search_history';
+        var PENDING_KEY = 'webgis_pending_search_selection';
+        var userKey = "{{ request.user.username|default:'guest'|escapejs }}";
+
+        function buildUserScopedKey(base) {
+            return base + '_' + userKey;
+        }
+
+        function migrateLegacyHistoryKey() {
+            try {
+                var scoped = buildUserScopedKey(HISTORY_KEY);
+                if (window.localStorage.getItem(scoped)) return;
+                var legacy = window.localStorage.getItem(HISTORY_KEY);
+                if (!legacy) return;
+                window.localStorage.setItem(scoped, legacy);
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function showHistoryTab(tab) {
+            var danhGiaTab = document.getElementById('tab-danh-gia');
+            var timKiemTab = document.getElementById('tab-tim-kiem');
+            var danhGiaContent = document.getElementById('history-danh-gia');
+            var timKiemContent = document.getElementById('history-tim-kiem');
+
+            if (tab === 'danh_gia') {
+                danhGiaTab.classList.add('active');
+                timKiemTab.classList.remove('active');
+                danhGiaContent.classList.add('active');
+                timKiemContent.classList.remove('active');
+            } else {
+                timKiemTab.classList.add('active');
+                danhGiaTab.classList.remove('active');
+                timKiemContent.classList.add('active');
+                danhGiaContent.classList.remove('active');
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function readSearchHistory() {
+            try {
+                var list = JSON.parse(window.localStorage.getItem(buildUserScopedKey(HISTORY_KEY)) || '[]');
+                if (!Array.isArray(list)) return [];
+                return list;
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function writeSearchHistory(list) {
+            window.localStorage.setItem(buildUserScopedKey(HISTORY_KEY), JSON.stringify(list || []));
+        }
+
+        function sortHistory(list) {
+            return (list || []).filter(function (it) {
+                return it && it.dia_chi && it.vi_do != null && it.kinh_do != null;
+            }).sort(function (a, b) {
+                if (!!a.yeu_thich !== !!b.yeu_thich) return a.yeu_thich ? -1 : 1;
+                return new Date(b.ngay || 0) - new Date(a.ngay || 0);
+            });
+        }
+
+        function moLaiTimKiem(index) {
+            var item = renderedSearchHistory[index];
+            if (item.vi_do == null || item.kinh_do == null) return;
+
+            localStorage.setItem(buildUserScopedKey(PENDING_KEY), JSON.stringify({
+                dia_chi: item.dia_chi,
+                vi_do: item.vi_do,
+                kinh_do: item.kinh_do
+            }));
+            window.location.href = "{% url 'trang_chu' %}";
+        }
+
+        function toggleYeuThich(index) {
+            var list = readSearchHistory();
+            var selected = renderedSearchHistory[index];
+            if (!selected) return;
+
+            list = list.map(function (it) {
+                if (it && it.dia_chi === selected.dia_chi && it.ngay === selected.ngay) {
+                    it.yeu_thich = !it.yeu_thich;
+                }
+                return it;
+            });
+            writeSearchHistory(list);
+            renderSearchHistory();
+        }
+
+        function xoaMucLichSu(index) {
+            var selected = renderedSearchHistory[index];
+            if (!selected) return;
+            var list = readSearchHistory().filter(function (it) {
+                return !(it && it.dia_chi === selected.dia_chi && it.ngay === selected.ngay);
+            });
+            writeSearchHistory(list);
+            renderSearchHistory();
+        }
+
+        function xoaTatCaLichSu() {
+            if (!confirm('Xóa toàn bộ lịch sử tìm kiếm của bạn?')) return;
+            writeSearchHistory([]);
+            renderSearchHistory();
+        }
+
+        function renderSearchHistory() {
+            var list = sortHistory(readSearchHistory());
+            renderedSearchHistory = list.slice();
+            var container = document.getElementById('search-history-list');
+            if (!container) return;
+
+            if (!list || list.length === 0) {
+                container.innerHTML = '<div class="history-empty">Chưa có lịch sử tìm kiếm</div>';
+                return;
+            }
+
+            container.innerHTML = list.map(function (it, index) {
+                var diaChi = (it && it.dia_chi) ? it.dia_chi : '';
+                var ngay = (it && it.ngay) ? new Date(it.ngay) : null;
+                var ngayStr = ngay ? ngay.toLocaleString('vi-VN') : '';
+                var favLabel = it && it.yeu_thich ? '★ Bỏ yêu thích' : '☆ Yêu thích';
+
+                return '<div class="history-item" onclick="moLaiTimKiem(' + index + ')">' +
+                    '<div class="history-item-store" style="font-weight:800;">' + escapeHtml(diaChi) + '</div>' +
+                    '<div class="history-item-meta">' + escapeHtml(ngayStr) + '</div>' +
+                    '<div class="history-actions">' +
+                        '<button class="history-btn history-btn-open" onclick="event.stopPropagation(); moLaiTimKiem(' + index + ')">Mở lại</button>' +
+                        '<button class="history-btn history-btn-fav" onclick="event.stopPropagation(); toggleYeuThich(' + index + ')">' + favLabel + '</button>' +
+                        '<button class="history-btn" style="background:#ffe8e8; color:#c53030;" onclick="event.stopPropagation(); xoaMucLichSu(' + index + ')">Xóa</button>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            migrateLegacyHistoryKey();
+            renderSearchHistory();
+        });
+    </script>
 </body>
 
 </html>

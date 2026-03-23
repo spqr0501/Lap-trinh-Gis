@@ -1,0 +1,17 @@
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<div style="display:flex; gap:8px; align-items:center; justify-content:center; margin-top:14px; flex-wrap:wrap;">
+    {% if page_obj.has_previous %}
+        <a class="btn btn-secondary" href="?{% if request.GET %}{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}{% endif %}page=1">Đầu</a>
+        <a class="btn btn-secondary" href="?{% if request.GET %}{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}{% endif %}page={{ page_obj.previous_page_number }}">Trước</a>
+    {% endif %}
+
+    <span style="padding:8px 10px; background:#edf2f7; border-radius:8px;">
+        Trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+    </span>
+
+    {% if page_obj.has_next %}
+        <a class="btn btn-secondary" href="?{% if request.GET %}{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}{% endif %}page={{ page_obj.next_page_number }}">Sau</a>
+        <a class="btn btn-secondary" href="?{% if request.GET %}{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}{% endif %}page={{ page_obj.paginator.num_pages }}">Cuối</a>
+    {% endif %}
+</div>
+{% endif %}

@@ -10,6 +10,8 @@
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <style>
         * {
@@ -404,6 +406,12 @@
             color: #999;
         }
 
+        .review-item-user {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 0.1rem;
+        }
+
         .review-item-text {
             font-size: 0.9rem;
             color: #444;
@@ -455,7 +463,7 @@
         <h1>🗺️ Bản Đồ Cửa Hàng Tiện Lợi</h1>
         <div class="header-links">
             {% if user.is_authenticated %}
-            <span style="color: #a8d8ff;">👤 {{ user.get_full_name|default:user.username }}</span>
+            <span style="color: #a8d8ff;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}{% if user.first_name %}{{ user.first_name }}{% else %}{{ user.username }}{% endif %}</span>
             <a href="{% url 'user_don_hang' %}">📦 Đơn hàng</a>
             {% if user.is_staff %}
             <a href="{% url 'admin_dashboard' %}">Quản Trị</a>
@@ -484,6 +492,7 @@
                             style="white-space: nowrap;">Tìm</button>
                     </div>
                     <div id="search-results" style="margin-top: 5px;"></div>
+                    <div id="recent-selected-search" style="display:none;"></div>
                 </div>
             </div>
 
@@ -505,6 +514,7 @@
                     </div>
 
                     <button onclick="calculateRoute()" class="btn btn-success">Tìm Đường</button>
+                    <button onclick="tim_cua_hang_gan_nhat()" class="btn btn-primary" style="width:100%; margin-top:6px;">Tìm Cửa Hàng Gần Nhất</button>
                     <button onclick="clearRoute()" class="btn btn-danger">Xóa</button>
                 </div>
 
@@ -537,6 +547,17 @@
                         <option value="5">Trong vòng 5 km</option>
                         <option value="10">Trong vòng 10 km</option>
                     </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Bán kính gợi ý khuyến mãi (km):</label>
+                    <select id="promo-radius" onchange="cap_nhat_goi_y_khuyen_mai()">
+                        <option value="1">1 km</option>
+                        <option value="2" selected>2 km</option>
+                        <option value="3">3 km</option>
+                        <option value="5">5 km</option>
+                    </select>
+                    <div id="promo-suggestions" style="margin-top:6px; font-size:0.85rem; color:#555;"></div>
                 </div>
 
                 <div class="control-group">
@@ -584,11 +605,14 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
     <!-- GIS Tools Library -->
     <script src="{% static 'js/gis_tools.js' %}"></script>
 
     <script>
+        window.WEBGIS_HISTORY_USER_KEY = "{% if user.is_authenticated %}{{ user.username|escapejs }}{% else %}guest{% endif %}";
         // Du lieu cua hang tu Django - load vao bien toan cuc
 du_lieu_cua_hang = [
 {% for sd in stores_data %}
@@ -606,6 +630,8 @@ du_lieu_cua_hang = [
         "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %}, {% endif %}
         {% endfor %}
     ],
+    "so_don_thanh_toan": {{ sd.order_count }},
+    "so_danh_gia": {{ sd.review_count }},
     "khoang_cach": null,
     "dau_hieu": null
 }{% if not forloop.last %}, {% endif %}
@@ -613,6 +639,11 @@ du_lieu_cua_hang = [
 ];
         // Khoi tao ban do khi DOM da san sang
         document.addEventListener('DOMContentLoaded', function () {
+            // Dọn dữ liệu localStorage cũ sai format (nếu có)
+            if (typeof xoa_lich_su_tim_kiem_khong_hop_le === 'function') {
+                xoa_lich_su_tim_kiem_khong_hop_le();
+            }
+
             // Khoi tao ban do tai Da Nang
             khoi_tao_ban_do('map', 16.0544, 108.2022, 13);
 
@@ -621,6 +652,14 @@ du_lieu_cua_hang = [
 
             // Hien thi danh sach ban dau (chua co khoang cach)
             hien_thi_danh_sach_cua_hang('type-filter', 'store-list');
+
+            // Neu user bam "mo lai" tu lich su tim kiem, ap dung ngay sau khi map san sang
+            if (typeof ap_dung_tim_kiem_tu_lich_su_neu_co === 'function') {
+                ap_dung_tim_kiem_tu_lich_su_neu_co();
+            }
+            if (typeof hien_thi_dia_chi_gan_nhat === 'function') {
+                hien_thi_dia_chi_gan_nhat();
+            }
         });
     </script>
 </body>

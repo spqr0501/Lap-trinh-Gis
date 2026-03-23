@@ -9,11 +9,13 @@ urlpatterns = [
     path('api/gis-tools/', views.api_gis_tools, name='api_gis_tools'),
     path('api/danh-gia/<int:cua_hang_id>/', views.api_danh_gia, name='api_danh_gia'),
     path('api/gui-danh-gia/<int:cua_hang_id>/', views.api_gui_danh_gia, name='api_gui_danh_gia'),
+    path('api/like-danh-gia/<int:danh_gia_id>/', views.api_like_danh_gia, name='api_like_danh_gia'),
     
     # Admin authentication
     path('quan-ly/login/', views.admin_login, name='admin_login'),
     path('quan-ly/logout/', views.admin_logout, name='admin_logout'),
     path('quan-ly/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('quan-ly/audit-log/', views.admin_audit_log, name='admin_audit_log'),
     
     # Admin CRUD: Loai Cua Hang
     path('quan-ly/loai/', views.admin_loai_list, name='admin_loai_list'),
@@ -42,6 +44,7 @@ urlpatterns = [
     # Admin CRUD: Cua Hang - Su Kien
     path('quan-ly/cuahang-sukien/', views.admin_cuahang_sukien_list, name='admin_cuahang_sukien_list'),
     path('quan-ly/cuahang-sukien/create/', views.admin_cuahang_sukien_create, name='admin_cuahang_sukien_create'),
+    path('quan-ly/cuahang-sukien/<int:id>/update/', views.admin_cuahang_sukien_update, name='admin_cuahang_sukien_update'),
     path('quan-ly/cuahang-sukien/<int:id>/delete/', views.admin_cuahang_sukien_delete, name='admin_cuahang_sukien_delete'),
 
     # Admin CRUD: Mat Hang
@@ -58,6 +61,7 @@ urlpatterns = [
 
     # Admin CRUD: Don Hang
     path('quan-ly/donhang/', views.admin_donhang_list, name='admin_donhang_list'),
+    path('quan-ly/donhang/export-csv/', views.admin_donhang_export_csv, name='admin_donhang_export_csv'),
     path('quan-ly/donhang/create/', views.admin_donhang_create, name='admin_donhang_create'),
     path('quan-ly/donhang/<int:id>/', views.admin_donhang_detail, name='admin_donhang_detail'),
     path('quan-ly/donhang/<int:id>/update/', views.admin_donhang_update, name='admin_donhang_update'),

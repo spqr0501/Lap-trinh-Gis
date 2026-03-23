@@ -9,6 +9,21 @@
     <div style="margin-bottom: 20px;">
         <p><strong>Cửa hàng:</strong> {{ don_hang.cua_hang.ten_cua_hang }}</p>
         <p><strong>Ngày đặt:</strong> {{ don_hang.ngay_dat|date:"d/m/Y H:i" }}</p>
+        <p><strong>Người đặt:</strong>
+            {% if don_hang.nguoi_dung %}
+                {% if don_hang.nguoi_dung.last_name %}
+                    {{ don_hang.nguoi_dung.last_name }}
+                {% endif %}
+                {% if don_hang.nguoi_dung.first_name %}
+                    {{ don_hang.nguoi_dung.first_name }}
+                {% endif %}
+                {% if not don_hang.nguoi_dung.first_name and not don_hang.nguoi_dung.last_name %}
+                    {{ don_hang.nguoi_dung.username }}
+                {% endif %}
+            {% else %}
+                Ẩn danh
+            {% endif %}
+        </p>
         <p><strong>Trạng thái:</strong>
             {% if don_hang.trang_thai == 'da_thanh_toan' %}
             <span style="color:green; font-weight:bold;">{{ don_hang.get_trang_thai_display }}</span>
@@ -54,6 +69,22 @@
             </tr>
         </tfoot>
     </table>
+
+    <h3 style="margin-top: 18px;">Tiến Trình Đơn Hàng</h3>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div style="padding:8px 12px; border-radius:20px; {% if don_hang.trang_thai == 'cho_xu_ly' %}background:#fff3cd; color:#856404; font-weight:700;{% else %}background:#edf2f7; color:#4a5568;{% endif %}">
+            1. Chờ xử lý
+        </div>
+        <div style="padding:8px 12px; border-radius:20px; {% if don_hang.trang_thai == 'dang_giao' %}background:#cce5ff; color:#004085; font-weight:700;{% else %}background:#edf2f7; color:#4a5568;{% endif %}">
+            2. Đang giao
+        </div>
+        <div style="padding:8px 12px; border-radius:20px; {% if don_hang.trang_thai == 'da_thanh_toan' %}background:#d4edda; color:#155724; font-weight:700;{% else %}background:#edf2f7; color:#4a5568;{% endif %}">
+            3. Đã thanh toán
+        </div>
+        <div style="padding:8px 12px; border-radius:20px; {% if don_hang.trang_thai == 'da_huy' %}background:#f8d7da; color:#721c24; font-weight:700;{% else %}background:#edf2f7; color:#4a5568;{% endif %}">
+            4. Đã hủy
+        </div>
+    </div>
 
     <div style="margin-top: 15px;">
         <a href="{% url 'admin_donhang_update' don_hang.id %}" class="btn btn-primary">Sửa</a>
