@@ -6,14 +6,67 @@
 <div class="card">
     <h1>Danh Sách Đơn Hàng</h1>
     <a href="{% url 'admin_donhang_create' %}" class="btn btn-success">Tạo Đơn Hàng</a>
-    <input type="text" class="search-box" placeholder="🔍 Tìm kiếm..."
-        style="margin-left:15px; padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:250px;">
+
+    <form method="get" style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+        <div style="min-width:220px;">
+            <label style="margin-bottom:4px;">Mã đơn (DH-...)</label>
+            <input type="text" name="q" value="{{ loc.q }}" placeholder="VD: DH-25" onchange="this.form.submit()">
+        </div>
+        <div style="min-width:180px;">
+            <label style="margin-bottom:4px;">Từ ngày</label>
+            <input type="date" name="tu_ngay" value="{{ loc.tu_ngay }}" onchange="this.form.submit()">
+        </div>
+        <div style="min-width:180px;">
+            <label style="margin-bottom:4px;">Đến ngày</label>
+            <input type="date" name="den_ngay" value="{{ loc.den_ngay }}" onchange="this.form.submit()">
+        </div>
+        <div style="min-width:200px;">
+            <label style="margin-bottom:4px;">Trạng thái</label>
+            <select name="trang_thai" onchange="this.form.submit()">
+                <option value="">Tất cả</option>
+                {% for value, label in trang_thais %}
+                    <option value="{{ value }}" {% if loc.trang_thai == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:220px;">
+            <label style="margin-bottom:4px;">Cửa hàng</label>
+            <select name="cua_hang_id" onchange="this.form.submit()">
+                <option value="">Tất cả</option>
+                {% for ch in cua_hangs %}
+                    <option value="{{ ch.id }}" {% if loc.cua_hang_id == ch.id|stringformat:"s" %}selected{% endif %}>{{ ch.ten_cua_hang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:180px;">
+            <label style="margin-bottom:4px;">Tổng tiền từ</label>
+            <input type="number" name="tong_tu" value="{{ loc.tong_tu }}" min="0" onchange="this.form.submit()">
+        </div>
+        <div style="min-width:180px;">
+            <label style="margin-bottom:4px;">Tổng tiền đến</label>
+            <input type="number" name="tong_den" value="{{ loc.tong_den }}" min="0" onchange="this.form.submit()">
+        </div>
+        <div style="min-width:220px;">
+            <label style="margin-bottom:4px;">Sắp xếp</label>
+            <select name="sap_xep" onchange="this.form.submit()">
+                <option value="-ngay_dat" {% if loc.sap_xep == '-ngay_dat' %}selected{% endif %}>Mới nhất</option>
+                <option value="ngay_dat" {% if loc.sap_xep == 'ngay_dat' %}selected{% endif %}>Cũ nhất</option>
+                <option value="-tong_tien" {% if loc.sap_xep == '-tong_tien' %}selected{% endif %}>Tổng tiền cao - thấp</option>
+                <option value="tong_tien" {% if loc.sap_xep == 'tong_tien' %}selected{% endif %}>Tổng tiền thấp - cao</option>
+                <option value="-id" {% if loc.sap_xep == '-id' %}selected{% endif %}>Mã đơn giảm dần</option>
+                <option value="id" {% if loc.sap_xep == 'id' %}selected{% endif %}>Mã đơn tăng dần</option>
+            </select>
+        </div>
+        <a href="{% url 'admin_donhang_export_csv' %}?q={{ loc.q }}&tu_ngay={{ loc.tu_ngay }}&den_ngay={{ loc.den_ngay }}&trang_thai={{ loc.trang_thai }}&cua_hang_id={{ loc.cua_hang_id }}&tong_tu={{ loc.tong_tu }}&tong_den={{ loc.tong_den }}&sap_xep={{ loc.sap_xep }}" class="btn btn-info">Xuất CSV</a>
+        <a href="{% url 'admin_donhang_list' %}" class="btn btn-secondary">Xóa lọc</a>
+    </form>
 
     <table>
         <thead>
             <tr>
                 <th>Mã ĐH</th>
                 <th>Cửa Hàng</th>
+                <th>Người đặt</th>
                 <th>Ngày Đặt</th>
                 <th>Trạng Thái</th>
                 <th>Tổng Tiền</th>
@@ -25,6 +78,21 @@
             <tr>
                 <td>DH-{{ item.id }}</td>
                 <td>{{ item.cua_hang.ten_cua_hang }}</td>
+                <td>
+                    {% if item.nguoi_dung %}
+                        {% if item.nguoi_dung.last_name %}
+                            {{ item.nguoi_dung.last_name }}
+                        {% endif %}
+                        {% if item.nguoi_dung.first_name %}
+                            {{ item.nguoi_dung.first_name }}
+                        {% endif %}
+                        {% if not item.nguoi_dung.first_name and not item.nguoi_dung.last_name %}
+                            {{ item.nguoi_dung.username }}
+                        {% endif %}
+                    {% else %}
+                        Ẩn danh
+                    {% endif %}
+                </td>
                 <td>{{ item.ngay_dat|date:"d/m/Y H:i" }}</td>
                 <td>
                     {% if item.trang_thai == 'da_thanh_toan' %}
@@ -47,10 +115,12 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align: center;">Chưa có đơn hàng</td>
+                <td colspan="7" style="text-align: center;">Chưa có đơn hàng</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    {% include 'admin/pagination.html' %}
 </div>
 {% endblock %}

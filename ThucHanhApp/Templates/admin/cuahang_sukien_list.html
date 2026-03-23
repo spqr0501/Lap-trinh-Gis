@@ -9,12 +9,44 @@
     <input type="text" class="search-box" placeholder="🔍 Tìm kiếm..."
         style="margin-left:15px; padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:250px;">
 
+    <form method="get" style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+        <div style="min-width:240px;">
+            <label style="margin-bottom:4px;">Cửa hàng</label>
+            <select name="cua_hang_id" onchange="this.form.submit()">
+                <option value="">Tất cả</option>
+                {% for ch in cua_hangs %}
+                    <option value="{{ ch.id }}" {% if loc.cua_hang_id == ch.id|stringformat:"s" %}selected{% endif %}>{{ ch.ten_cua_hang }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:240px;">
+            <label style="margin-bottom:4px;">Sự kiện</label>
+            <select name="su_kien_id" onchange="this.form.submit()">
+                <option value="">Tất cả</option>
+                {% for sk in su_kiens %}
+                    <option value="{{ sk.id }}" {% if loc.su_kien_id == sk.id|stringformat:"s" %}selected{% endif %}>{{ sk.ten_su_kien }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:220px;">
+            <label style="margin-bottom:4px;">Trạng thái</label>
+            <select name="trang_thai" onchange="this.form.submit()">
+                <option value="">Tất cả</option>
+                <option value="dang_dien_ra" {% if loc.trang_thai == 'dang_dien_ra' %}selected{% endif %}>Đang diễn ra</option>
+                <option value="sap_toi" {% if loc.trang_thai == 'sap_toi' %}selected{% endif %}>Sắp tới</option>
+            </select>
+        </div>
+        <a href="{% url 'admin_cuahang_sukien_list' %}" class="btn btn-secondary">Xóa lọc</a>
+    </form>
+
     <table>
         <thead>
             <tr>
                 <th>ID</th>
                 <th>Cửa Hàng</th>
                 <th>Sự Kiện</th>
+                <th>Lịch</th>
+                <th>Trạng thái</th>
                 <th>Hành Động</th>
             </tr>
         </thead>
@@ -25,16 +57,37 @@
                 <td>{{ item.cua_hang.ten_cua_hang }}</td>
                 <td>{{ item.su_kien.ten_su_kien }}</td>
                 <td>
+                    {% if item.su_kien.la_hang_tuan %}
+                        Hàng tuần
+                        {% with ds_ngay=item.su_kien.get_ngay_trong_tuan_display_list %}
+                            {% if ds_ngay %}
+                                <br><small>{{ ds_ngay|join:", " }}</small>
+                            {% endif %}
+                        {% endwith %}
+                    {% else %}
+                        {{ item.su_kien.ngay_bat_dau|date:"d/m/Y" }} - {{ item.su_kien.ngay_ket_thuc|date:"d/m/Y" }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.su_kien.dang_dien_ra %}
+                        <span style="color:green; font-weight:700;">Đang diễn ra</span>
+                    {% else %}
+                        <span style="color:#718096;">Không diễn ra</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'admin_cuahang_sukien_update' item.id %}" class="btn btn-primary">Sửa</a>
                     <a href="{% url 'admin_cuahang_sukien_delete' item.id %}" class="btn btn-danger"
                         onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" style="text-align: center;">Chưa có dữ liệu</td>
+                <td colspan="6" style="text-align: center;">Chưa có dữ liệu</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% include 'admin/pagination.html' %}
 </div>
 {% endblock %}

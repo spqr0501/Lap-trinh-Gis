@@ -49,6 +49,37 @@ class DanhGia(models.Model):
         return f"{self.cua_hang.ten_cua_hang} - {self.diem} sao"
 
 
+class DanhGiaLike(models.Model):
+    danh_gia = models.ForeignKey(DanhGia, on_delete=models.CASCADE, related_name='likes')
+    nguoi_dung = models.ForeignKey(User, on_delete=models.CASCADE, related_name='danh_gia_likes')
+    thoi_gian = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'danh_gia_like'
+        verbose_name = 'Like đánh giá'
+        verbose_name_plural = 'Like đánh giá'
+        unique_together = ('danh_gia', 'nguoi_dung')
+        ordering = ['-thoi_gian']
+
+    def __str__(self):
+        return f"{self.nguoi_dung.username} like DG#{self.danh_gia_id}"
+
+
+class DanhGiaAnh(models.Model):
+    danh_gia = models.ForeignKey(DanhGia, on_delete=models.CASCADE, related_name='hinh_anhs')
+    hinh_anh = models.ImageField(upload_to='danh_gia/')
+    thoi_gian_tao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'danh_gia_anh'
+        verbose_name = 'Ảnh đánh giá'
+        verbose_name_plural = 'Ảnh đánh giá'
+        ordering = ['thoi_gian_tao']
+
+    def __str__(self):
+        return f"Ảnh đánh giá #{self.id} - DG#{self.danh_gia_id}"
+
+
 class SuKien(models.Model):
     NGAY_TRONG_TUAN = [
         (0, 'Thứ Hai'),
@@ -202,3 +233,34 @@ class ChiTietDonHang(models.Model):
 
     def __str__(self):
         return f"{self.mat_hang.ten_mat_hang} x{self.so_luong}"
+
+
+class AuditLog(models.Model):
+    HANH_DONG_CHOICES = [
+        ('create', 'Tạo mới'),
+        ('update', 'Cập nhật'),
+        ('delete', 'Xóa'),
+        ('view', 'Xem'),
+        ('export', 'Xuất dữ liệu'),
+        ('other', 'Khác'),
+    ]
+
+    nguoi_dung = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
+    module = models.CharField(max_length=100)
+    hanh_dong = models.CharField(max_length=20, choices=HANH_DONG_CHOICES, default='other')
+    mo_ta = models.TextField()
+    ip_address = models.CharField(max_length=50, blank=True, default='')
+    thoi_gian = models.DateTimeField(auto_now_add=True)
+    doi_tuong = models.CharField(max_length=100, blank=True, default='')
+    doi_tuong_id = models.IntegerField(null=True, blank=True)
+    du_lieu_truoc = models.JSONField(null=True, blank=True)
+    du_lieu_sau = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'audit_log'
+        verbose_name = 'Nhật ký thao tác'
+        verbose_name_plural = 'Nhật ký thao tác'
+        ordering = ['-thoi_gian']
+
+    def __str__(self):
+        return f"[{self.module}] {self.get_hanh_dong_display()} - {self.thoi_gian:%d/%m/%Y %H:%M}"

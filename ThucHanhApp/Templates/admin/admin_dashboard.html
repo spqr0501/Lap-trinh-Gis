@@ -160,6 +160,65 @@
         font-size: 3rem;
         opacity: 0.3;
     }
+
+    .khung-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .mini-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .mini-card h3 {
+        margin-bottom: 0.8rem;
+        color: #4a5568;
+        font-size: 1rem;
+    }
+
+    .thanh-trang-thai {
+        display: flex;
+        border-radius: 999px;
+        overflow: hidden;
+        height: 12px;
+        background: #edf2f7;
+        margin-bottom: 0.8rem;
+    }
+
+    .thanh-trang-thai > span {
+        display: block;
+        height: 100%;
+    }
+
+    .chu-thich-trang-thai {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 10px;
+        font-size: 0.9rem;
+        color: #4a5568;
+    }
+
+    .hang-top-store {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #edf2f7;
+        font-size: 0.95rem;
+    }
+
+    .hang-top-store:last-child {
+        border-bottom: none;
+    }
+
+    .hang-top-store strong {
+        color: #2d3748;
+    }
 </style>
 {% endblock %}
 
@@ -241,12 +300,51 @@
     </div>
 </div>
 
+<div class="khung-grid">
+    <div class="mini-card">
+        <h3>Đơn Hàng Tổng Quan</h3>
+        <p><strong>Tổng:</strong> {{ order_stats.tong }} | <strong>Hôm nay:</strong> {{ order_stats.hom_nay }} | <strong>Tháng này:</strong> {{ order_stats.thang_nay }}</p>
+        {% with total=order_stats.tong %}
+        <div class="thanh-trang-thai">
+            <span style="background:#f6ad55; width:{% if total %}{% widthratio order_stats.cho_xu_ly total 100 %}{% else %}0{% endif %}%"></span>
+            <span style="background:#63b3ed; width:{% if total %}{% widthratio order_stats.dang_giao total 100 %}{% else %}0{% endif %}%"></span>
+            <span style="background:#68d391; width:{% if total %}{% widthratio order_stats.da_thanh_toan total 100 %}{% else %}0{% endif %}%"></span>
+            <span style="background:#fc8181; width:{% if total %}{% widthratio order_stats.da_huy total 100 %}{% else %}0{% endif %}%"></span>
+        </div>
+        {% endwith %}
+        <div class="chu-thich-trang-thai">
+            <div>🟧 Chờ xử lý: {{ order_stats.cho_xu_ly }}</div>
+            <div>🟦 Đang giao: {{ order_stats.dang_giao }}</div>
+            <div>🟩 Đã thanh toán: {{ order_stats.da_thanh_toan }}</div>
+            <div>🟥 Đã hủy: {{ order_stats.da_huy }}</div>
+        </div>
+    </div>
+
+    <div class="mini-card">
+        <h3>Top Cửa Hàng Doanh Thu</h3>
+        {% for store in top_store_revenue %}
+            <div class="hang-top-store">
+                <strong>{{ store.cua_hang__ten_cua_hang }}</strong>
+                <span>{{ store.tong|floatformat:0 }} đ ({{ store.so_don }} đơn)</span>
+            </div>
+        {% empty %}
+            <p>Chưa có doanh thu thanh toán.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>Biểu Đồ Doanh Thu 6 Tháng Gần Nhất</h2>
+    <canvas id="revenueChart" height="90"></canvas>
+</div>
+
 <div class="card">
     <h2><i class="fas fa-comments"></i> Đánh Giá Gần Đây</h2>
     <table>
         <thead>
             <tr>
                 <th>Cửa Hàng</th>
+                <th>Người đánh giá</th>
                 <th>Điểm</th>
                 <th>Nhận Xét</th>
                 <th>Ngày</th>
@@ -257,6 +355,21 @@
             <tr>
                 <td><strong>{{ dg.cua_hang.ten_cua_hang }}</strong></td>
                 <td>
+                    {% if dg.nguoi_dung %}
+                        {% if dg.nguoi_dung.last_name %}
+                            {{ dg.nguoi_dung.last_name }}
+                        {% endif %}
+                        {% if dg.nguoi_dung.first_name %}
+                            {{ dg.nguoi_dung.first_name }}
+                        {% endif %}
+                        {% if not dg.nguoi_dung.first_name and not dg.nguoi_dung.last_name %}
+                            {{ dg.nguoi_dung.username }}
+                        {% endif %}
+                    {% else %}
+                        Ẩn danh
+                    {% endif %}
+                </td>
+                <td>
                     <span class="rating">
                         {% for i in "12345" %}
                         {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %}{% endfor %} </span>
@@ -266,7 +379,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" style="text-align: center; color: #a0aec0; padding: 2rem;">
+                <td colspan="5" style="text-align: center; color: #a0aec0; padding: 2rem;">
                     <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
                     Chưa có đánh giá nào
                 </td>
@@ -275,4 +388,36 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var ctx = document.getElementById('revenueChart');
+        if (!ctx) return;
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [{% for l in chart_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Doanh thu (đ)',
+                    data: [{% for v in chart_values %}{{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.12)',
+                    fill: true,
+                    tension: 0.25
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

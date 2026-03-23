@@ -16,8 +16,13 @@ Including another URLconf
 """
 # from django.contrib import admin  # Removed - using custom admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     # path('admin/', admin.site.urls),  # Removed - using custom admin at /quan-ly/
     path('', include("ThucHanhApp.urls"))
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
