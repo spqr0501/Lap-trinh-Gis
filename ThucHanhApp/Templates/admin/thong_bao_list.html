@@ -1,0 +1,44 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Thông Báo Admin{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Thông Báo Admin</h1>
+
+    <form method="post" action="{% url 'admin_thong_bao_xoa_da_doc' %}" style="margin-bottom:12px;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Xóa tất cả thông báo đã đọc?')">Xóa các thông báo đã đọc</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Thời gian</th>
+                <th>Tiêu đề</th>
+                <th>Nội dung</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr style="{% if not item.da_doc %}background:#edf2ff;{% endif %}">
+                <td>{{ item.thoi_gian_tao|date:"d/m/Y H:i:s" }}</td>
+                <td>{{ item.tieu_de }}</td>
+                <td>{{ item.noi_dung }}</td>
+                <td>{% if item.da_doc %}Đã đọc{% else %}<strong>Chưa đọc</strong>{% endif %}</td>
+                <td>
+                    <a href="{% url 'admin_thong_bao_doc' item.id %}" class="btn btn-primary">Mở</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align:center;">Không có thông báo</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% include 'admin/pagination.html' %}
+</div>
+{% endblock %}

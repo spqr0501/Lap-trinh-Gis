@@ -10,12 +10,19 @@ urlpatterns = [
     path('api/danh-gia/<int:cua_hang_id>/', views.api_danh_gia, name='api_danh_gia'),
     path('api/gui-danh-gia/<int:cua_hang_id>/', views.api_gui_danh_gia, name='api_gui_danh_gia'),
     path('api/like-danh-gia/<int:danh_gia_id>/', views.api_like_danh_gia, name='api_like_danh_gia'),
+    path('api/admin-thong-bao/', views.api_admin_thong_bao, name='api_admin_thong_bao'),
+    path('api/admin-thong-bao/<int:id>/doc/', views.api_admin_thong_bao_doc, name='api_admin_thong_bao_doc'),
+    path('api/admin-thong-bao/doc-tat-ca/', views.api_admin_thong_bao_doc_tat_ca, name='api_admin_thong_bao_doc_tat_ca'),
     
     # Admin authentication
     path('quan-ly/login/', views.admin_login, name='admin_login'),
     path('quan-ly/logout/', views.admin_logout, name='admin_logout'),
     path('quan-ly/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('quan-ly/audit-log/', views.admin_audit_log, name='admin_audit_log'),
+    path('quan-ly/thong-bao/', views.admin_thong_bao_list, name='admin_thong_bao_list'),
+    path('quan-ly/thong-bao/<int:id>/doc/', views.admin_thong_bao_doc, name='admin_thong_bao_doc'),
+    path('quan-ly/thong-bao/doc-tat-ca/', views.admin_thong_bao_doc_tat_ca, name='admin_thong_bao_doc_tat_ca'),
+    path('quan-ly/thong-bao/xoa-da-doc/', views.admin_thong_bao_xoa_da_doc, name='admin_thong_bao_xoa_da_doc'),
     
     # Admin CRUD: Loai Cua Hang
     path('quan-ly/loai/', views.admin_loai_list, name='admin_loai_list'),

@@ -62,6 +62,111 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        .admin-notif-wrap {
+            position: relative;
+            display: inline-block;
+        }
+
+        .admin-notif-btn {
+            position: relative;
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem 0.8rem;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .admin-notif-badge {
+            position: absolute;
+            top: -7px;
+            right: -7px;
+            background: #e53e3e;
+            color: white;
+            font-size: 11px;
+            min-width: 18px;
+            height: 18px;
+            line-height: 18px;
+            text-align: center;
+            border-radius: 999px;
+            padding: 0 4px;
+            font-weight: 700;
+        }
+
+        .admin-notif-dropdown {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            width: 360px;
+            max-height: 420px;
+            overflow: auto;
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 2500;
+            display: none;
+        }
+
+        .admin-notif-dropdown.open {
+            display: block;
+        }
+
+        .admin-notif-head {
+            padding: 10px 12px;
+            border-bottom: 1px solid #edf2f7;
+            color: #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-notif-list {
+            padding: 6px 0;
+        }
+
+        .admin-notif-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f7fafc;
+            cursor: pointer;
+        }
+
+        .admin-notif-item:hover {
+            background: #f8faff;
+        }
+
+        .admin-notif-item.unread {
+            background: #edf2ff;
+            border-left: 3px solid #667eea;
+        }
+
+        .admin-notif-item-title {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.92rem;
+        }
+
+        .admin-notif-item-content {
+            color: #4a5568;
+            font-size: 0.84rem;
+            margin-top: 2px;
+        }
+
+        .admin-notif-item-time {
+            color: #718096;
+            font-size: 0.78rem;
+            margin-top: 4px;
+        }
+
+        .admin-notif-actions {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-top: 1px solid #edf2f7;
+            gap: 8px;
+        }
+
         /* Main Container */
         .container {
             display: flex;
@@ -514,6 +619,25 @@
             <span style="color: #a8d8ff;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}{% if user.first_name %}{{ user.first_name }}{% else %}{{ user.username }}{% endif %}</span>
             <a href="{% url 'user_don_hang' %}">📦 Đơn hàng</a>
             {% if user.is_staff %}
+            <div class="admin-notif-wrap">
+                <button type="button" class="admin-notif-btn" onclick="toggle_admin_notif_dropdown()" title="Thông báo admin">
+                    🔔
+                    <span id="admin-notif-badge" class="admin-notif-badge" {% if not admin_unread_count %}style="display:none;"{% endif %}>{{ admin_unread_count }}</span>
+                </button>
+                <div id="admin-notif-dropdown" class="admin-notif-dropdown">
+                    <div class="admin-notif-head">
+                        <strong>Thông báo đơn hàng</strong>
+                        <a href="{% url 'admin_thong_bao_doc_tat_ca' %}" class="btn btn-sm" style="background:#edf2f7; text-decoration:none;">Đánh dấu đã đọc</a>
+                    </div>
+                    <div id="admin-notif-list" class="admin-notif-list">
+                        <div class="loading">Đang tải thông báo...</div>
+                    </div>
+                    <div class="admin-notif-actions">
+                        <a href="{% url 'admin_thong_bao_list' %}" style="font-size:0.85rem; color:#4c51bf; text-decoration:none;">Xem tất cả</a>
+                        <a href="{% url 'admin_dashboard' %}" style="font-size:0.85rem; color:#4a5568; text-decoration:none;">Vào quản trị</a>
+                    </div>
+                </div>
+            </div>
             <a href="{% url 'admin_dashboard' %}">Quản Trị</a>
             {% endif %}
             <a href="{% url 'user_logout' %}">Đăng Xuất</a>
@@ -723,6 +847,9 @@ du_lieu_cua_hang = [
             }
             if (typeof hien_thi_dia_chi_gan_nhat === 'function') {
                 hien_thi_dia_chi_gan_nhat();
+            }
+            if (typeof khoi_tao_thong_bao_admin === 'function') {
+                khoi_tao_thong_bao_admin();
             }
         });
     </script>
