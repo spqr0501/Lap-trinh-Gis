@@ -4,13 +4,15 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.gis.geos import Point
 from django.http import JsonResponse
-from .models import LoaiCuaHang, CuaHang, DanhGia, DanhGiaLike, DanhGiaAnh, SuKien, CuaHangSuKien, MatHang, TonKho, DonHang, ChiTietDonHang, AuditLog
+from .models import LoaiCuaHang, CuaHang, DanhGia, DanhGiaLike, DanhGiaAnh, SuKien, CuaHangSuKien, MatHang, TonKho, DonHang, ChiTietDonHang, AuditLog, AdminThongBao
 from django.contrib.auth.models import User
 from .utils.gis_tools import CongCuGIS, khoang_cach_km
 from functools import wraps
 from django.http import HttpResponse
 from django.core.mail import send_mail
 from django.conf import settings as django_settings
+from django.urls import reverse
+from django.utils import timezone
 import math
 import json
 from django.core.paginator import Paginator
@@ -52,6 +54,23 @@ def ghi_nhat_ky(request, module, hanh_dong, mo_ta, doi_tuong='', doi_tuong_id=No
         du_lieu_truoc=du_lieu_truoc,
         du_lieu_sau=du_lieu_sau,
     )
+
+
+def tao_thong_bao_admin_don_moi(don_hang):
+    staff_users = User.objects.filter(is_staff=True, is_active=True).only('id')
+    if not staff_users.exists():
+        return
+    tieu_de = f'🆕 Đơn hàng mới DH-{don_hang.id}'
+    noi_dung = f'{don_hang.nguoi_dung.username if don_hang.nguoi_dung else "Khách"} vừa đặt đơn tại {don_hang.cua_hang.ten_cua_hang}'
+    objs = []
+    for u in staff_users:
+        objs.append(AdminThongBao(
+            nguoi_dung_id=u.id,
+            don_hang=don_hang,
+            tieu_de=tieu_de,
+            noi_dung=noi_dung,
+        ))
+    AdminThongBao.objects.bulk_create(objs, ignore_conflicts=False)
 
 
 def phan_trang_queryset(request, queryset, per_page=10):
@@ -133,9 +152,17 @@ def trang_chu(request):
             'review_count': cua_hang.so_danh_gia or 0,
         })
     
+    admin_unread_count = 0
+    admin_notifs = []
+    if request.user.is_authenticated and request.user.is_staff:
+        admin_unread_count = AdminThongBao.objects.filter(nguoi_dung=request.user, da_doc=False).count()
+        admin_notifs = AdminThongBao.objects.filter(nguoi_dung=request.user).select_related('don_hang')[:8]
+
     return render(request, 'bando.html', {
         'stores_data': du_lieu_cua_hang,
         'loai_cua_hangs': danh_sach_loai,
+        'admin_unread_count': admin_unread_count,
+        'admin_notifs': admin_notifs,
     })
 
 
@@ -274,6 +301,104 @@ def api_gui_danh_gia(request, cua_hang_id):
         return JsonResponse({'thanh_cong': True, 'ten_nguoi': ten_nguoi, 'cap_nhat': cap_nhat})
     except Exception as e:
         return JsonResponse({'loi': str(e)}, status=400)
+
+
+@login_required(login_url='/dang-nhap/')
+def api_admin_thong_bao(request):
+    if not request.user.is_staff:
+        return JsonResponse({'loi': 'Không có quyền'}, status=403)
+    qs = AdminThongBao.objects.filter(nguoi_dung=request.user).select_related('don_hang')[:8]
+    unread_count = AdminThongBao.objects.filter(nguoi_dung=request.user, da_doc=False).count()
+    items = []
+    for tb in qs:
+        url = reverse('admin_thong_bao_doc', args=[tb.id])
+        items.append({
+            'id': tb.id,
+            'tieu_de': tb.tieu_de,
+            'noi_dung': tb.noi_dung,
+            'da_doc': tb.da_doc,
+            'thoi_gian': tb.thoi_gian_tao.strftime('%H:%M %d/%m'),
+            'url': url,
+        })
+    return JsonResponse({'unread_count': unread_count, 'items': items})
+
+
+@login_required(login_url='/dang-nhap/')
+def api_admin_thong_bao_doc(request, id):
+    if request.method != 'POST':
+        return JsonResponse({'loi': 'Chi chap nhan POST'}, status=405)
+    if not request.user.is_staff:
+        return JsonResponse({'loi': 'Không có quyền'}, status=403)
+    tb = get_object_or_404(AdminThongBao, id=id, nguoi_dung=request.user)
+    if not tb.da_doc:
+        tb.da_doc = True
+        tb.thoi_gian_doc = timezone.now()
+        tb.save(update_fields=['da_doc', 'thoi_gian_doc'])
+    url = reverse('admin_donhang_detail', args=[tb.don_hang_id]) if tb.don_hang_id else reverse('admin_thong_bao_list')
+    return JsonResponse({'thanh_cong': True, 'url': url})
+
+
+@login_required(login_url='/dang-nhap/')
+def api_admin_thong_bao_doc_tat_ca(request):
+    if request.method != 'POST':
+        return JsonResponse({'loi': 'Chi chap nhan POST'}, status=405)
+    if not request.user.is_staff:
+        return JsonResponse({'loi': 'Không có quyền'}, status=403)
+    AdminThongBao.objects.filter(nguoi_dung=request.user, da_doc=False).update(
+        da_doc=True,
+        thoi_gian_doc=timezone.now()
+    )
+    return JsonResponse({'thanh_cong': True})
+
+
+@admin_required
+def admin_thong_bao_list(request):
+    if not request.user.is_staff:
+        messages.error(request, 'Bạn không có quyền truy cập thông báo admin.')
+        return redirect('trang_chu')
+    qs = AdminThongBao.objects.filter(nguoi_dung=request.user).select_related('don_hang')
+    page_obj, items = phan_trang_queryset(request, qs, per_page=20)
+    return render(request, 'admin/thong_bao_list.html', {'items': items, 'page_obj': page_obj})
+
+
+@admin_required
+def admin_thong_bao_doc(request, id):
+    if not request.user.is_staff:
+        messages.error(request, 'Bạn không có quyền truy cập thông báo admin.')
+        return redirect('trang_chu')
+    tb = get_object_or_404(AdminThongBao, id=id, nguoi_dung=request.user)
+    if not tb.da_doc:
+        tb.da_doc = True
+        tb.thoi_gian_doc = timezone.now()
+        tb.save(update_fields=['da_doc', 'thoi_gian_doc'])
+    if tb.don_hang_id:
+        return redirect('admin_donhang_detail', id=tb.don_hang_id)
+    return redirect('admin_thong_bao_list')
+
+
+@admin_required
+def admin_thong_bao_doc_tat_ca(request):
+    if not request.user.is_staff:
+        messages.error(request, 'Bạn không có quyền truy cập thông báo admin.')
+        return redirect('trang_chu')
+    AdminThongBao.objects.filter(nguoi_dung=request.user, da_doc=False).update(
+        da_doc=True,
+        thoi_gian_doc=timezone.now()
+    )
+    messages.success(request, 'Đã đánh dấu tất cả thông báo là đã đọc.')
+    return redirect('trang_chu')
+
+
+@admin_required
+def admin_thong_bao_xoa_da_doc(request):
+    if request.method != 'POST':
+        return redirect('admin_thong_bao_list')
+    if not request.user.is_staff:
+        messages.error(request, 'Bạn không có quyền truy cập thông báo admin.')
+        return redirect('trang_chu')
+    so_xoa, _ = AdminThongBao.objects.filter(nguoi_dung=request.user, da_doc=True).delete()
+    messages.success(request, f'Đã xóa {so_xoa} thông báo đã đọc.')
+    return redirect('admin_thong_bao_list')
 
 
 # ====== API CONG CU GIS ======
@@ -2065,6 +2190,7 @@ def user_dat_hang(request, cua_hang_id):
                 hanh_dong='create',
                 mo_ta=f"Người dùng đặt đơn DH-{don_hang.id} tại {cua_hang.ten_cua_hang}, tổng {int(don_hang.tong_tien)} đ"
             )
+            tao_thong_bao_admin_don_moi(don_hang)
 
             # Gui email don hang
             if request.user.email:

@@ -264,3 +264,22 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"[{self.module}] {self.get_hanh_dong_display()} - {self.thoi_gian:%d/%m/%Y %H:%M}"
+
+
+class AdminThongBao(models.Model):
+    nguoi_dung = models.ForeignKey(User, on_delete=models.CASCADE, related_name='admin_thong_baos')
+    don_hang = models.ForeignKey(DonHang, on_delete=models.CASCADE, null=True, blank=True, related_name='admin_thong_baos')
+    tieu_de = models.CharField(max_length=255)
+    noi_dung = models.TextField(blank=True, default='')
+    da_doc = models.BooleanField(default=False)
+    thoi_gian_tao = models.DateTimeField(auto_now_add=True)
+    thoi_gian_doc = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'admin_thong_bao'
+        verbose_name = 'Thông báo admin'
+        verbose_name_plural = 'Thông báo admin'
+        ordering = ['-thoi_gian_tao']
+
+    def __str__(self):
+        return f"TB#{self.id} - {self.tieu_de}"

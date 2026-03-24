@@ -1716,6 +1716,67 @@ function gui_danh_gia(cua_hang_id) {
         });
 }
 
+// ============================================================================
+// THONG BAO ADMIN (DON HANG MOI)
+// ============================================================================
+var admin_notif_timer = null;
+
+function toggle_admin_notif_dropdown() {
+    var el = document.getElementById('admin-notif-dropdown');
+    if (!el) return;
+    el.classList.toggle('open');
+    if (el.classList.contains('open')) {
+        tai_thong_bao_admin();
+    }
+}
+
+function khoi_tao_thong_bao_admin() {
+    var badge = document.getElementById('admin-notif-badge');
+    if (!badge) return;
+    tai_thong_bao_admin();
+    if (admin_notif_timer) clearInterval(admin_notif_timer);
+    admin_notif_timer = setInterval(tai_thong_bao_admin, 15000);
+    document.addEventListener('click', function (ev) {
+        var wrap = document.querySelector('.admin-notif-wrap');
+        var drop = document.getElementById('admin-notif-dropdown');
+        if (!wrap || !drop) return;
+        if (!wrap.contains(ev.target)) {
+            drop.classList.remove('open');
+        }
+    });
+}
+
+function tai_thong_bao_admin() {
+    var list = document.getElementById('admin-notif-list');
+    var badge = document.getElementById('admin-notif-badge');
+    if (!list || !badge) return;
+    fetch('/api/admin-thong-bao/')
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            var unread = data.unread_count || 0;
+            badge.textContent = unread;
+            badge.style.display = unread > 0 ? 'inline-block' : 'none';
+
+            var items = data.items || [];
+            if (!items.length) {
+                list.innerHTML = '<div class="loading" style="padding:10px 12px;">Không có thông báo mới.</div>';
+                return;
+            }
+            var html = '';
+            items.forEach(function (it) {
+                html += '<a class="admin-notif-item ' + (it.da_doc ? '' : 'unread') + '" href="' + (it.url || '#') + '" style="display:block; text-decoration:none;">';
+                html += '<div class="admin-notif-item-title">' + (it.tieu_de || 'Thông báo') + '</div>';
+                html += '<div class="admin-notif-item-content">' + (it.noi_dung || '') + '</div>';
+                html += '<div class="admin-notif-item-time">' + (it.thoi_gian || '') + '</div>';
+                html += '</a>';
+            });
+            list.innerHTML = html;
+        })
+        .catch(function () {
+            // Bỏ qua lỗi nhẹ để không làm ảnh hưởng map
+        });
+}
+
 // Lay CSRF token tu cookie de gui POST request an toan
 function lay_csrf_token() {
     var name = 'csrftoken';
