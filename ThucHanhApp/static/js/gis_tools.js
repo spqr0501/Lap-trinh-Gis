@@ -33,6 +33,9 @@ var lop_nhiet = null;                   // Heatmap layer
 var dang_bat_heatmap = false;           // Toggle heatmap state
 var bo_chuyen_lop_ban_do = null;        // Control switcher OSM/Satellite/Dark
 var chu_giai_ban_do = null;             // Legend control
+var vong_highlight_cua_hang = null;     // Vòng tròn highlight cửa hàng (tìm kiếm)
+var timer_goi_y_tim_cua_hang = null;    // Debounce autocomplete cửa hàng
+var goi_y_tim_cua_hang_index = -1;      // Phím mũi tên trong danh sách gợi ý
 
 
 // ============================================================================
@@ -557,6 +560,150 @@ function chon_cua_hang(id_cua_hang) {
             dat_diem_bat_dau(vi_tri_nguoi_dung.vi_do, vi_tri_nguoi_dung.kinh_do);
             calculateRoute();
         }
+    }
+}
+
+
+// ============================================================================
+// TIM CUA HANG - AUTOCOMPLETE + HIGHLIGHT
+// ============================================================================
+
+function chuan_hoa_tim_kiem_chuoi(s) {
+    if (!s) return '';
+    try {
+        return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    } catch (e) {
+        return String(s).toLowerCase().trim();
+    }
+}
+
+function xoa_highlight_cua_hang() {
+    if (vong_highlight_cua_hang && ban_do) {
+        ban_do.removeLayer(vong_highlight_cua_hang);
+        vong_highlight_cua_hang = null;
+    }
+}
+
+function dat_vong_highlight_cua_hang(cua_hang) {
+    xoa_highlight_cua_hang();
+    if (!ban_do || !cua_hang || cua_hang.vi_do == null || cua_hang.kinh_do == null) return;
+    vong_highlight_cua_hang = L.circle([cua_hang.vi_do, cua_hang.kinh_do], {
+        radius: 200,
+        color: '#d69e2e',
+        fillColor: '#faf089',
+        fillOpacity: 0.38,
+        weight: 3,
+        dashArray: '6, 8'
+    }).addTo(ban_do);
+}
+
+function goi_y_tim_cua_hang() {
+    if (timer_goi_y_tim_cua_hang) clearTimeout(timer_goi_y_tim_cua_hang);
+    timer_goi_y_tim_cua_hang = setTimeout(function () {
+        timer_goi_y_tim_cua_hang = null;
+        hien_thi_goi_y_tim_cua_hang();
+    }, 220);
+}
+
+function hien_thi_goi_y_tim_cua_hang() {
+    var input = document.getElementById('search-store');
+    var listEl = document.getElementById('store-autocomplete-list');
+    if (!input || !listEl) return;
+
+    var q = chuan_hoa_tim_kiem_chuoi(input.value);
+    goi_y_tim_cua_hang_index = -1;
+
+    if (q.length < 1) {
+        listEl.style.display = 'none';
+        listEl.innerHTML = '';
+        xoa_highlight_cua_hang();
+        return;
+    }
+
+    var ket_qua = [];
+    du_lieu_cua_hang.forEach(function (ch) {
+        if (!ch.ten && !ch.dia_chi) return;
+        var ten = chuan_hoa_tim_kiem_chuoi(ch.ten);
+        var dc = chuan_hoa_tim_kiem_chuoi(ch.dia_chi);
+        var loai = chuan_hoa_tim_kiem_chuoi(ch.loai || '');
+        if (ten.indexOf(q) !== -1 || dc.indexOf(q) !== -1 || loai.indexOf(q) !== -1) {
+            ket_qua.push(ch);
+        }
+    });
+
+    ket_qua = ket_qua.slice(0, 10);
+
+    if (ket_qua.length === 0) {
+        listEl.innerHTML = '<div class="store-autocomplete-item" style="cursor:default;color:#718096;">Không tìm thấy cửa hàng phù hợp</div>';
+        listEl.style.display = 'block';
+        return;
+    }
+
+    var html = '';
+    ket_qua.forEach(function (ch) {
+        html += '<div class="store-autocomplete-item" data-id="' + ch.id + '" ' +
+            'onmousedown="event.preventDefault(); chon_tu_goi_y_tim_cua_hang(' + ch.id + ')">' +
+            '<div class="ac-name">' + (ch.ten || '') + '</div>' +
+            '<div class="ac-addr">' + (ch.dia_chi || '') + '</div>' +
+            '</div>';
+    });
+    listEl.innerHTML = html;
+    listEl.style.display = 'block';
+}
+
+function chon_tu_goi_y_tim_cua_hang(id_cua_hang) {
+    var listEl = document.getElementById('store-autocomplete-list');
+    var input = document.getElementById('search-store');
+    if (listEl) {
+        listEl.style.display = 'none';
+        listEl.innerHTML = '';
+    }
+    var ch = du_lieu_cua_hang.find(function (c) { return c.id === id_cua_hang; });
+    if (ch && input) {
+        input.value = ch.ten || '';
+    }
+    chon_cua_hang(id_cua_hang);
+    if (ch) {
+        dat_vong_highlight_cua_hang(ch);
+    }
+}
+
+function an_goi_y_tim_cua_hang_sau() {
+    setTimeout(function () {
+        var listEl = document.getElementById('store-autocomplete-list');
+        if (listEl) listEl.style.display = 'none';
+    }, 200);
+}
+
+function phim_tim_cua_hang(ev) {
+    var listEl = document.getElementById('store-autocomplete-list');
+    if (!listEl || listEl.style.display === 'none') return;
+
+    var items = listEl.querySelectorAll('.store-autocomplete-item[data-id]');
+    if (!items.length) return;
+
+    if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        goi_y_tim_cua_hang_index = Math.min(goi_y_tim_cua_hang_index + 1, items.length - 1);
+        cap_nhat_active_goi_y(items);
+    } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        goi_y_tim_cua_hang_index = Math.max(goi_y_tim_cua_hang_index - 1, 0);
+        cap_nhat_active_goi_y(items);
+    } else if (ev.key === 'Enter') {
+        if (goi_y_tim_cua_hang_index >= 0 && items[goi_y_tim_cua_hang_index]) {
+            ev.preventDefault();
+            var id = parseInt(items[goi_y_tim_cua_hang_index].getAttribute('data-id'), 10);
+            if (!isNaN(id)) chon_tu_goi_y_tim_cua_hang(id);
+        }
+    } else if (ev.key === 'Escape') {
+        listEl.style.display = 'none';
+    }
+}
+
+function cap_nhat_active_goi_y(items) {
+    for (var i = 0; i < items.length; i++) {
+        items[i].classList.toggle('active', i === goi_y_tim_cua_hang_index);
     }
 }
 

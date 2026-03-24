@@ -10,6 +10,7 @@ from .utils.gis_tools import CongCuGIS, khoang_cach_km
 from functools import wraps
 from django.http import HttpResponse
 from django.core.mail import send_mail
+from django.conf import settings as django_settings
 import math
 import json
 from django.core.paginator import Paginator
@@ -1795,14 +1796,33 @@ def admin_donhang_update(request, id):
                     ton_kho.so_luong = max(0, ton_kho.so_luong - ct.so_luong)
                     ton_kho.save()
                     
-        # Gui email thong bao neu trang thai thay doi
+        # Gửi email khi trạng thái đơn thay đổi (Mailtrap Sandbox / SMTP)
         if old_trang_thai != don_hang.trang_thai and don_hang.nguoi_dung and don_hang.nguoi_dung.email:
             try:
+                ten_kh = don_hang.nguoi_dung.first_name or don_hang.nguoi_dung.username
                 tt_display = don_hang.get_trang_thai_display()
+                if don_hang.trang_thai == 'da_thanh_toan':
+                    subject = f'[DH-{don_hang.id}] Giao hàng thành công — Đã thanh toán'
+                    message = (
+                        f'Xin chào {ten_kh},\n\n'
+                        f'Đơn hàng DH-{don_hang.id} tại cửa hàng «{don_hang.cua_hang.ten_cua_hang}» '
+                        f'đã được giao / hoàn tất và đánh dấu ĐÃ THANH TOÁN.\n\n'
+                        f'Tổng tiền: {int(don_hang.tong_tien or 0):,} đ\n\n'
+                        f'Cảm ơn bạn đã mua hàng. Hẹn gặp lại!\n'
+                    )
+                else:
+                    subject = f'Cập nhật trạng thái đơn hàng [DH-{don_hang.id}]'
+                    message = (
+                        f'Xin chào {ten_kh},\n\n'
+                        f'Đơn hàng DH-{don_hang.id} tại {don_hang.cua_hang.ten_cua_hang} '
+                        f'vừa được cập nhật trạng thái.\n\n'
+                        f'Trạng thái hiện tại: {tt_display}\n\n'
+                        f'Cảm ơn bạn đã sử dụng hệ thống!\n'
+                    )
                 send_mail(
-                    subject=f'Cập nhật trạng thái đơn hàng [DH-{don_hang.id}]',
-                    message=f'Xin chào {don_hang.nguoi_dung.first_name or don_hang.nguoi_dung.username},\n\nĐơn hàng DH-{don_hang.id} của bạn tại {don_hang.cua_hang.ten_cua_hang} vừa được cập nhật trạng thái mới:\n\nTrạng thái hiện tại: {tt_display}\n\nCảm ơn bạn đã sử dụng hệ thống!',
-                    from_email='admin@webgis.com',
+                    subject=subject,
+                    message=message,
+                    from_email=django_settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[don_hang.nguoi_dung.email],
                     fail_silently=True,
                 )
@@ -1954,7 +1974,7 @@ def user_register(request):
                         send_mail(
                             subject='Chào mừng bạn đến với WebGIS Cửa Hàng!',
                             message=f'Xin chào {ho_ten or username},\n\nCảm ơn bạn đã đăng ký tài khoản trên hệ thống WebGIS Cửa Hàng của chúng tôi!\n\nChúc bạn có những trải nghiệm tuyệt vời cùng bản đồ GIS.',
-                            from_email='admin@webgis.com',
+                            from_email=django_settings.DEFAULT_FROM_EMAIL,
                             recipient_list=[email],
                             fail_silently=True,
                         )
@@ -2057,9 +2077,16 @@ def user_dat_hang(request, cua_hang_id):
                     chi_tiet_str = "\n".join(chi_tiet_list)
 
                     send_mail(
-                        subject=f'Xác nhận đơn hàng [DH-{don_hang.id}]',
-                        message=f'Xin chào {request.user.first_name or request.user.username},\n\nBạn đã đặt hàng thành công tại {cua_hang.ten_cua_hang}.\n\nChi tiết đơn hàng:\n{chi_tiet_str}\n\nTổng tiền: {don_hang.tong_tien:,.0f} đ\n\nCảm ơn bạn đã tin tưởng dịch vụ!',
-                        from_email='admin@webgis.com',
+                        subject=f'Xác nhận đặt hàng thành công [DH-{don_hang.id}]',
+                        message=(
+                            f'Xin chào {request.user.first_name or request.user.username},\n\n'
+                            f'Bạn đã đặt hàng thành công tại {cua_hang.ten_cua_hang}.\n\n'
+                            f'Chi tiết đơn hàng:\n{chi_tiet_str}\n\n'
+                            f'Tổng tiền: {don_hang.tong_tien:,.0f} đ\n\n'
+                            f'Đơn đang ở trạng thái «Chờ xử lý». Chúng tôi sẽ thông báo khi giao hàng hoàn tất.\n\n'
+                            f'Cảm ơn bạn đã tin tưởng dịch vụ!\n'
+                        ),
+                        from_email=django_settings.DEFAULT_FROM_EMAIL,
                         recipient_list=[request.user.email],
                         fail_silently=True,
                     )

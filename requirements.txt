@@ -1,0 +1,2 @@
+Django>=6.0,<7
+django-anymail[mailtrap]>=12.0
