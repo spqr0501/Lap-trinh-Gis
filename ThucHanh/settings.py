@@ -10,11 +10,36 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import importlib.util
 import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_env_file():
+    """Đọc file .env (KEY=value) vào os.environ nếu chưa có biến hệ thống."""
+    path = BASE_DIR / '.env'
+    if not path.is_file():
+        return
+    try:
+        for raw in path.read_text(encoding='utf-8').splitlines():
+            line = raw.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' not in line:
+                continue
+            key, _, val = line.partition('=')
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+    except OSError:
+        pass
+
+
+_load_env_file()
 
 
 # Quick-start development settings - unsuitable for production
@@ -49,6 +74,12 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     'ThucHanhApp',
 ]
+
+# Mailtrap API (django-anymail): bật nếu có MAILTRAP_API_TOKEN và đã pip install django-anymail
+MAILTRAP_API_TOKEN = os.environ.get('MAILTRAP_API_TOKEN', '').strip()
+_HAS_ANYMAIL = importlib.util.find_spec('anymail') is not None
+if MAILTRAP_API_TOKEN and _HAS_ANYMAIL:
+    INSTALLED_APPS = list(INSTALLED_APPS) + ['anymail']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -138,10 +169,29 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'live.smtp.mailtrap.io'
-EMAIL_HOST_USER = 'api'
-EMAIL_HOST_PASSWORD = 'b86d2ed5a6fef41655cbd1f64edb6332'
-EMAIL_PORT = '587'
-EMAIL_USE_TLS = True
+# ---------------------------------------------------------------------------
+# Email — Mailtrap Sandbox
+# - Có MAILTRAP_API_TOKEN + django-anymail → gửi qua Mailtrap API (sandbox).
+# - Ngược lại → SMTP sandbox (sandbox.smtp.mailtrap.io).
+# File .env (đã gitignore): xem .env.example
+# ---------------------------------------------------------------------------
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'WebGIS Cửa Hàng <no-reply@example.com>')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+if MAILTRAP_API_TOKEN and _HAS_ANYMAIL:
+    EMAIL_BACKEND = 'anymail.backends.mailtrap.EmailBackend'
+    ANYMAIL = {'MAILTRAP_API_TOKEN': MAILTRAP_API_TOKEN}
+    _mt_sid = os.environ.get('MAILTRAP_SANDBOX_ID', '').strip()
+    if _mt_sid.isdigit():
+        ANYMAIL['MAILTRAP_SANDBOX_ID'] = int(_mt_sid)
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'sandbox.smtp.mailtrap.io')
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '2525'))
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes', 'on')
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    # DEBUG mà chưa có SMTP user/pass → in ra console
+    if DEBUG and not (EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):
+        EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 

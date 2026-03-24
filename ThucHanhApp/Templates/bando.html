@@ -454,6 +454,54 @@
         .route-tooltip::before {
             display: none !important;
         }
+
+        /* Autocomplete tìm cửa hàng */
+        .store-autocomplete-wrap {
+            position: relative;
+        }
+
+        .store-autocomplete-dropdown {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            max-height: 220px;
+            overflow-y: auto;
+            background: #fff;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            z-index: 1001;
+        }
+
+        .store-autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.88rem;
+            line-height: 1.35;
+        }
+
+        .store-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .store-autocomplete-item:hover,
+        .store-autocomplete-item.active {
+            background: #edf2ff;
+        }
+
+        .store-autocomplete-item .ac-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .store-autocomplete-item .ac-addr {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 2px;
+        }
     </style>
 </head>
 
@@ -493,6 +541,22 @@
                     </div>
                     <div id="search-results" style="margin-top: 5px;"></div>
                     <div id="recent-selected-search" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Tìm cửa hàng (autocomplete) -->
+            <div class="sidebar-section">
+                <h2>Tìm Cửa Hàng</h2>
+                <div class="control-group store-autocomplete-wrap">
+                    <label for="search-store">Tên hoặc địa chỉ</label>
+                    <input type="text" id="search-store" placeholder="Gõ để gợi ý cửa hàng..."
+                        autocomplete="off"
+                        style="width:100%; padding: 0.6rem; border: 2px solid #e1e8ed; border-radius: 5px; font-size: 0.9rem;"
+                        oninput="goi_y_tim_cua_hang()"
+                        onfocus="goi_y_tim_cua_hang()"
+                        onkeydown="phim_tim_cua_hang(event)"
+                        onblur="an_goi_y_tim_cua_hang_sau()">
+                    <div id="store-autocomplete-list" class="store-autocomplete-dropdown" style="display:none;"></div>
                 </div>
             </div>
 
