@@ -17,7 +17,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 30px auto;
             padding: 0 20px;
         }
@@ -37,7 +37,7 @@
         }
 
         .history-card {
-            width: 320px;
+            width: 280px;
             max-width: 100%;
         }
 
@@ -236,7 +236,10 @@
     <div class="container">
         <div class="topbar">
             <a href="{% url 'trang_chu' %}">← Về bản đồ</a>
-            <span>👤 {% if request.user.last_name %}{{ request.user.last_name }} {% endif %}{% if request.user.first_name %}{{ request.user.first_name }}{% else %}{{ request.user.username }}{% endif %}</span>
+            <span>👤 {% if request.user.last_name %}{{ request.user.last_name }} {% endif %}
+                {% if request.user.first_name %}{{ request.user.first_name }}{% else %}{{ request.user.username }}
+                {%endif%}
+            </span>
         </div>
 
         {% if messages %}
@@ -252,48 +255,41 @@
                 <div class="history-title">🕘 Lịch Sử</div>
 
                 <div class="history-tabs">
-                    <button
-                        id="tab-danh-gia"
-                        class="history-tab-button active"
-                        onclick="showHistoryTab('danh_gia')"
+                    <button id="tab-danh-gia" class="history-tab-button active" onclick="showHistoryTab('danh_gia')"
                         type="button">Lịch sử đánh giá</button>
-                    <button
-                        id="tab-tim-kiem"
-                        class="history-tab-button"
-                        onclick="showHistoryTab('tim_kiem')"
+                    <button id="tab-tim-kiem" class="history-tab-button" onclick="showHistoryTab('tim_kiem')"
                         type="button">Lịch sử tìm kiếm</button>
                 </div>
 
                 <div id="history-danh-gia" class="history-tab-content active">
                     {% if review_history %}
-                        <div class="history-list">
-                            {% for dg in review_history %}
-                            <div class="history-item">
-                                <div class="history-item-store">{{ dg.cua_hang.ten_cua_hang }}</div>
-                                <div class="history-item-meta">
-                                    <span>
-                                        {% for i in "12345" %}
-                                            {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %} 
-                                        {% endfor %}
-                                    </span>
-                                    <span> • {{ dg.ngay_danh_gia|date:"d/m/Y" }}</span>
-                                </div>
-                                {% if dg.nhan_xet %}
-                                    <div class="history-item-text">{{ dg.nhan_xet|truncatewords:20 }}</div>
-                                {% endif %}
+                    <div class="history-list">
+                        {% for dg in review_history %}
+                        <div class="history-item">
+                            <div class="history-item-store">{{ dg.cua_hang.ten_cua_hang }}</div>
+                            <div class="history-item-meta">
+                                <span>
+                                    {% for i in "12345" %}
+                                    {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %} {% endfor %} </span>
+                                        <span> • {{ dg.ngay_danh_gia|date:"d/m/Y" }}</span>
                             </div>
-                            {% empty %}
-                                <div class="history-empty">Chưa có lịch sử đánh giá</div>
-                            {% endfor %}
+                            {% if dg.nhan_xet %}
+                            <div class="history-item-text">{{ dg.nhan_xet|truncatewords:20 }}</div>
+                            {% endif %}
                         </div>
-                    {% else %}
+                        {% empty %}
                         <div class="history-empty">Chưa có lịch sử đánh giá</div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="history-empty">Chưa có lịch sử đánh giá</div>
                     {% endif %}
                 </div>
 
                 <div id="history-tim-kiem" class="history-tab-content">
                     <div style="margin-bottom:8px; display:flex; justify-content:flex-end;">
-                        <button class="history-btn history-btn-fav" type="button" onclick="xoaTatCaLichSu()">Xóa tất cả</button>
+                        <button class="history-btn history-btn-fav" type="button" onclick="xoaTatCaLichSu()">Xóa tất
+                            cả</button>
                     </div>
                     <div id="search-history-list" class="history-list">
                         <div class="history-empty">Đang tải lịch sử...</div>
@@ -311,6 +307,7 @@
                             <th>Ngày Đặt</th>
                             <th>Tổng Tiền</th>
                             <th>Trạng Thái</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -320,11 +317,18 @@
                             <td>{{ dh.cua_hang.ten_cua_hang }}</td>
                             <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
                             <td class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
-                            <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span></td>
+                            <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span>
+                            </td>
+                            <td><button onclick="inPDFUser({{ dh.id }})" title="Tải PDF"
+                                    style="padding:5px 8px; font-size:0.75rem; background:transparent; color:#667eea; border:1.5px solid #667eea; border-radius:6px; cursor:pointer; font-weight:600; transition:all .2s;"
+                                    onmouseover="this.style.background='#667eea';this.style.color='white'"
+                                    onmouseout="this.style.background='transparent';this.style.color='#667eea'">📄
+                                    PDF</button></td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" style="text-align:center; color:#999; padding:30px;">Bạn chưa có đơn hàng nào
+                            <td colspan="6" style="text-align:center; color:#999; padding:30px;">Bạn chưa có đơn hàng
+                                nào
                             </td>
                         </tr>
                         {% endfor %}
@@ -334,6 +338,73 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        function inPDFUser(donHangId) {
+            fetch('/api/don-hang/' + donHangId + '/')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var chiTietRows = '';
+                    if (data.chi_tiets && data.chi_tiets.length) {
+                        data.chi_tiets.forEach(function (ct) {
+                            chiTietRows += '<tr>' +
+                                '<td style="padding:10px; border:1px solid #ddd;">' + ct.stt + '</td>' +
+                                '<td style="padding:10px; border:1px solid #ddd;">' + ct.ten + '</td>' +
+                                '<td style="padding:10px; border:1px solid #ddd;">' + ct.so_luong + '</td>' +
+                                '<td style="padding:10px; border:1px solid #ddd;">' + ct.don_gia.toLocaleString('vi-VN') + '</td>' +
+                                '<td style="padding:10px; border:1px solid #ddd;">' + ct.thanh_tien.toLocaleString('vi-VN') + '</td>' +
+                                '</tr>';
+                        });
+                    }
+
+                    var html = '<div style="width:800px; background:#fff; padding:40px; font-family:\'Segoe UI\', Arial, sans-serif;">' +
+                        '<h1 style="text-align:center; color:#667eea; font-size:24px; margin-bottom:25px;">HÓA ĐƠN - DH-' + data.id + '</h1>' +
+                        '<p><strong>Cửa hàng:</strong> ' + data.cua_hang + '</p>' +
+                        '<p><strong>Ngày đặt:</strong> ' + data.ngay_dat + '</p>' +
+                        '<p><strong>Người đặt:</strong> ' + data.nguoi_dat + '</p>' +
+                        '<p><strong>Trạng thái:</strong> ' + data.trang_thai + '</p>' +
+                        '<p><strong>Ghi chú:</strong> ' + data.ghi_chu + '</p>' +
+                        '<table style="width:100%; border-collapse:collapse; margin-top:18px;">' +
+                        '<thead><tr style="background:#667eea; color:#fff;">' +
+                        '<th style="padding:10px; text-align:left; border:1px solid #ddd;">#</th>' +
+                        '<th style="padding:10px; text-align:left; border:1px solid #ddd;">Mặt Hàng</th>' +
+                        '<th style="padding:10px; text-align:left; border:1px solid #ddd;">Số Lượng</th>' +
+                        '<th style="padding:10px; text-align:left; border:1px solid #ddd;">Đơn Giá (đ)</th>' +
+                        '<th style="padding:10px; text-align:left; border:1px solid #ddd;">Thành Tiền (đ)</th>' +
+                        '</tr></thead>' +
+                        '<tbody>' + chiTietRows + '</tbody>' +
+                        '<tfoot><tr style="background:#f0f0f0; font-weight:bold;">' +
+                        '<td colspan="4" style="padding:10px; border:1px solid #ddd; text-align:right;">TỔNG CỘNG:</td>' +
+                        '<td style="padding:10px; border:1px solid #ddd;">' + data.tong_tien.toLocaleString('vi-VN') + ' đ</td>' +
+                        '</tr></tfoot></table>' +
+                        '<p style="text-align:center; color:#999; font-size:12px; margin-top:20px;">WebGIS Cửa Hàng - In ngày ' + new Date().toLocaleString('vi-VN') + '</p>' +
+                        '</div>';
+
+                    var tempDiv = document.createElement('div');
+                    tempDiv.style.position = 'fixed';
+                    tempDiv.style.left = '0';
+                    tempDiv.style.top = '0';
+                    tempDiv.style.zIndex = '-1';
+                    tempDiv.innerHTML = html;
+                    document.body.appendChild(tempDiv);
+
+                    html2canvas(tempDiv.firstChild, { scale: 2, useCORS: true }).then(function (canvas) {
+                        document.body.removeChild(tempDiv);
+
+                        var imgData = canvas.toDataURL('image/png');
+                        var { jsPDF } = window.jspdf;
+                        var imgW = 190; // A4 width - margins
+                        var imgH = (canvas.height * imgW) / canvas.width;
+
+                        var doc = new jsPDF('p', 'mm', 'a4');
+                        doc.addImage(imgData, 'PNG', 10, 10, imgW, imgH);
+                        doc.save('DonHang_DH-' + data.id + '.pdf');
+                    });
+                })
+                .catch(function (err) { alert('Lỗi tải đơn hàng: ' + err); });
+        }
+    </script>
     <script>
         var renderedSearchHistory = [];
         var HISTORY_KEY = 'webgis_search_history';
@@ -471,9 +542,9 @@
                     '<div class="history-item-store" style="font-weight:800;">' + escapeHtml(diaChi) + '</div>' +
                     '<div class="history-item-meta">' + escapeHtml(ngayStr) + '</div>' +
                     '<div class="history-actions">' +
-                        '<button class="history-btn history-btn-open" onclick="event.stopPropagation(); moLaiTimKiem(' + index + ')">Mở lại</button>' +
-                        '<button class="history-btn history-btn-fav" onclick="event.stopPropagation(); toggleYeuThich(' + index + ')">' + favLabel + '</button>' +
-                        '<button class="history-btn" style="background:#ffe8e8; color:#c53030;" onclick="event.stopPropagation(); xoaMucLichSu(' + index + ')">Xóa</button>' +
+                    '<button class="history-btn history-btn-open" onclick="event.stopPropagation(); moLaiTimKiem(' + index + ')">Mở lại</button>' +
+                    '<button class="history-btn history-btn-fav" onclick="event.stopPropagation(); toggleYeuThich(' + index + ')">' + favLabel + '</button>' +
+                    '<button class="history-btn" style="background:#ffe8e8; color:#c53030;" onclick="event.stopPropagation(); xoaMucLichSu(' + index + ')">Xóa</button>' +
                     '</div>' +
                     '</div>';
             }).join('');

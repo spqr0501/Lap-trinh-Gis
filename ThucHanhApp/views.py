@@ -140,16 +140,32 @@ def trang_chu(request):
     ).all()
     danh_sach_loai = LoaiCuaHang.objects.all()
     
+    # Tinh phan bo sao cho tung cua hang (cho Map Chart)
+    from django.db.models import Avg
+    phan_bo_sao_all = {}
+    for ch in danh_sach_cua_hang:
+        danh_gias_ch = DanhGia.objects.filter(cua_hang=ch)
+        phan_bo = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for dg in danh_gias_ch:
+            if 1 <= dg.diem <= 5:
+                phan_bo[dg.diem] += 1
+        tong_dg = sum(phan_bo.values())
+        diem_tb = round(sum(k * v for k, v in phan_bo.items()) / tong_dg, 1) if tong_dg > 0 else 0
+        phan_bo_sao_all[ch.id] = {'phan_bo': phan_bo, 'diem_tb': diem_tb}
+    
     # Chuan bi du lieu cua hang kem theo su kien
     du_lieu_cua_hang = []
     for cua_hang in danh_sach_cua_hang:
         danh_sach_su_kien = [cs.su_kien for cs in cua_hang.su_kiens.all() if cs.su_kien.dang_dien_ra]
+        sao_data = phan_bo_sao_all.get(cua_hang.id, {'phan_bo': {1:0,2:0,3:0,4:0,5:0}, 'diem_tb': 0})
         du_lieu_cua_hang.append({
             'store': cua_hang,
             'events': danh_sach_su_kien,
             'has_events': len(danh_sach_su_kien) > 0,
             'order_count': cua_hang.so_don_thanh_toan or 0,
             'review_count': cua_hang.so_danh_gia or 0,
+            'phan_bo_sao': sao_data['phan_bo'],
+            'diem_tb': sao_data['diem_tb'],
         })
     
     admin_unread_count = 0
@@ -689,7 +705,7 @@ def admin_dashboard(request):
         so_don=Count('id')
     ).order_by('-tong')[:5]
 
-    from django.db.models.functions import TruncMonth
+    from django.db.models.functions import TruncMonth, TruncDate, TruncQuarter
     doanh_thu_6_thang = DonHang.objects.filter(trang_thai='da_thanh_toan').annotate(
         thang=TruncMonth('ngay_dat')
     ).values('thang').annotate(
@@ -698,7 +714,50 @@ def admin_dashboard(request):
     doanh_thu_6_thang = list(reversed(list(doanh_thu_6_thang)))
     labels = [d['thang'].strftime('%m/%Y') for d in doanh_thu_6_thang]
     values = [int(d['tong'] or 0) for d in doanh_thu_6_thang]
-    
+
+    # Doanh thu 7 ngay gan nhat
+    from datetime import timedelta
+    ngay_7_truoc = hom_nay - timedelta(days=6)
+    doanh_thu_7_ngay = DonHang.objects.filter(
+        trang_thai='da_thanh_toan', ngay_dat__date__gte=ngay_7_truoc
+    ).annotate(ngay=TruncDate('ngay_dat')).values('ngay').annotate(
+        tong=Sum('tong_tien')
+    ).order_by('ngay')
+    # Tao du lieu day du 7 ngay (ke ca ngay khong co don)
+    daily_map = {d['ngay']: int(d['tong'] or 0) for d in doanh_thu_7_ngay}
+    daily_labels = []
+    daily_values = []
+    for i in range(7):
+        ngay = ngay_7_truoc + timedelta(days=i)
+        daily_labels.append(ngay.strftime('%d/%m'))
+        daily_values.append(daily_map.get(ngay, 0))
+
+    # Doanh thu theo quy (4 quy gan nhat)
+    doanh_thu_quy = DonHang.objects.filter(trang_thai='da_thanh_toan').annotate(
+        quy=TruncQuarter('ngay_dat')
+    ).values('quy').annotate(
+        tong=Sum('tong_tien')
+    ).order_by('-quy')[:4]
+    doanh_thu_quy = list(reversed(list(doanh_thu_quy)))
+    quarter_labels = ['Q' + str((d['quy'].month - 1) // 3 + 1) + '/' + str(d['quy'].year) for d in doanh_thu_quy]
+    quarter_values = [int(d['tong'] or 0) for d in doanh_thu_quy]
+
+    # Diem danh gia trung binh tung cua hang (top 5)
+    from django.db.models import Avg
+    top_danh_gia = CuaHang.objects.annotate(
+        diem_tb=Avg('danh_gias__diem'),
+        so_dg=Count('danh_gias')
+    ).filter(so_dg__gt=0).order_by('-diem_tb')[:5]
+    rating_store_labels = [ch.ten_cua_hang for ch in top_danh_gia]
+    rating_store_values = [round(float(ch.diem_tb or 0), 1) for ch in top_danh_gia]
+
+    # Phan bo sao toan he thong
+    phan_bo_sao_ht = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    for dg in DanhGia.objects.all():
+        if 1 <= dg.diem <= 5:
+            phan_bo_sao_ht[dg.diem] += 1
+    star_dist_values = [phan_bo_sao_ht[i] for i in range(1, 6)]
+
     return render(request, 'admin/admin_dashboard.html', {
         'stats': thong_ke,
         'recent_reviews': danh_gia_gan_day,
@@ -706,7 +765,133 @@ def admin_dashboard(request):
         'top_store_revenue': top_cua_hang_doanh_thu,
         'chart_labels': labels,
         'chart_values': values,
+        'daily_labels': daily_labels,
+        'daily_values': daily_values,
+        'quarter_labels': quarter_labels,
+        'quarter_values': quarter_values,
+        'rating_store_labels': rating_store_labels,
+        'rating_store_values': rating_store_values,
+        'star_dist_values': star_dist_values,
     })
+
+
+@admin_required
+def api_dashboard_revenue(request):
+    """
+    API tra ve du lieu doanh thu theo bo loc thoi gian
+    Tham so GET: filter = 7ngay|30ngay|thang_truoc|quy_nay|nam_nay|nam_truoc|6thang|12thang
+    """
+    from django.http import JsonResponse
+    from django.db.models import Sum
+    from django.db.models.functions import TruncDate, TruncMonth, TruncQuarter
+    from django.utils import timezone
+    from datetime import timedelta
+    import calendar
+
+    bo_loc = request.GET.get('filter', '6thang')
+    hom_nay = timezone.localdate()
+    qs = DonHang.objects.filter(trang_thai='da_thanh_toan')
+    labels = []
+    values = []
+
+    if bo_loc == '7ngay':
+        bat_dau = hom_nay - timedelta(days=6)
+        data = qs.filter(ngay_dat__date__gte=bat_dau).annotate(
+            ngay=TruncDate('ngay_dat')
+        ).values('ngay').annotate(tong=Sum('tong_tien')).order_by('ngay')
+        data_map = {d['ngay']: int(d['tong'] or 0) for d in data}
+        for i in range(7):
+            ngay = bat_dau + timedelta(days=i)
+            labels.append(ngay.strftime('%d/%m'))
+            values.append(data_map.get(ngay, 0))
+
+    elif bo_loc == '30ngay':
+        bat_dau = hom_nay - timedelta(days=29)
+        data = qs.filter(ngay_dat__date__gte=bat_dau).annotate(
+            ngay=TruncDate('ngay_dat')
+        ).values('ngay').annotate(tong=Sum('tong_tien')).order_by('ngay')
+        data_map = {d['ngay']: int(d['tong'] or 0) for d in data}
+        for i in range(30):
+            ngay = bat_dau + timedelta(days=i)
+            labels.append(ngay.strftime('%d/%m'))
+            values.append(data_map.get(ngay, 0))
+
+    elif bo_loc == 'thang_truoc':
+        if hom_nay.month == 1:
+            thang = 12
+            nam = hom_nay.year - 1
+        else:
+            thang = hom_nay.month - 1
+            nam = hom_nay.year
+        so_ngay = calendar.monthrange(nam, thang)[1]
+        from datetime import date
+        bat_dau = date(nam, thang, 1)
+        ket_thuc = date(nam, thang, so_ngay)
+        data = qs.filter(ngay_dat__date__gte=bat_dau, ngay_dat__date__lte=ket_thuc).annotate(
+            ngay=TruncDate('ngay_dat')
+        ).values('ngay').annotate(tong=Sum('tong_tien')).order_by('ngay')
+        data_map = {d['ngay']: int(d['tong'] or 0) for d in data}
+        for i in range(so_ngay):
+            ngay = bat_dau + timedelta(days=i)
+            labels.append(ngay.strftime('%d/%m'))
+            values.append(data_map.get(ngay, 0))
+
+    elif bo_loc == 'quy_nay':
+        quy_hien_tai = (hom_nay.month - 1) // 3 + 1
+        thang_dau_quy = (quy_hien_tai - 1) * 3 + 1
+        from datetime import date
+        bat_dau = date(hom_nay.year, thang_dau_quy, 1)
+        data = qs.filter(ngay_dat__date__gte=bat_dau, ngay_dat__date__lte=hom_nay).annotate(
+            ngay=TruncDate('ngay_dat')
+        ).values('ngay').annotate(tong=Sum('tong_tien')).order_by('ngay')
+        data_map = {d['ngay']: int(d['tong'] or 0) for d in data}
+        ngay_iter = bat_dau
+        while ngay_iter <= hom_nay:
+            labels.append(ngay_iter.strftime('%d/%m'))
+            values.append(data_map.get(ngay_iter, 0))
+            ngay_iter += timedelta(days=1)
+
+    elif bo_loc == 'nam_nay':
+        from datetime import date
+        bat_dau = date(hom_nay.year, 1, 1)
+        data = qs.filter(ngay_dat__date__gte=bat_dau).annotate(
+            thang=TruncMonth('ngay_dat')
+        ).values('thang').annotate(tong=Sum('tong_tien')).order_by('thang')
+        data_map = {d['thang'].month: int(d['tong'] or 0) for d in data}
+        for m in range(1, hom_nay.month + 1):
+            labels.append(f'T{m}/{hom_nay.year}')
+            values.append(data_map.get(m, 0))
+
+    elif bo_loc == 'nam_truoc':
+        nam_truoc = hom_nay.year - 1
+        from datetime import date
+        bat_dau = date(nam_truoc, 1, 1)
+        ket_thuc = date(nam_truoc, 12, 31)
+        data = qs.filter(ngay_dat__date__gte=bat_dau, ngay_dat__date__lte=ket_thuc).annotate(
+            thang=TruncMonth('ngay_dat')
+        ).values('thang').annotate(tong=Sum('tong_tien')).order_by('thang')
+        data_map = {d['thang'].month: int(d['tong'] or 0) for d in data}
+        for m in range(1, 13):
+            labels.append(f'T{m}/{nam_truoc}')
+            values.append(data_map.get(m, 0))
+
+    elif bo_loc == '12thang':
+        data = qs.annotate(thang=TruncMonth('ngay_dat')).values('thang').annotate(
+            tong=Sum('tong_tien')
+        ).order_by('-thang')[:12]
+        data = list(reversed(list(data)))
+        labels = [d['thang'].strftime('%m/%Y') for d in data]
+        values = [int(d['tong'] or 0) for d in data]
+
+    else:  # 6thang
+        data = qs.annotate(thang=TruncMonth('ngay_dat')).values('thang').annotate(
+            tong=Sum('tong_tien')
+        ).order_by('-thang')[:6]
+        data = list(reversed(list(data)))
+        labels = [d['thang'].strftime('%m/%Y') for d in data]
+        values = [int(d['tong'] or 0) for d in data]
+
+    return JsonResponse({'labels': labels, 'values': values, 'filter': bo_loc})
 
 
 @admin_required
@@ -1687,6 +1872,97 @@ def admin_tonkho_delete(request, id):
     return redirect('admin_tonkho_list')
 
 
+@admin_required
+def admin_tonkho_import_excel(request):
+    """Nhap ton kho tu file Excel (.xlsx).
+
+    Cot bat buoc: Ten cua hang | Ten mat hang | So luong
+    - Tim cua hang / mat hang theo ten (case-insensitive, strip).
+    - Neu da co ban ghi TonKho (cua_hang + mat_hang) -> cong them so_luong.
+    - Neu chua co -> tao moi.
+    """
+    if request.method != 'POST':
+        return redirect('admin_tonkho_list')
+
+    file = request.FILES.get('excel_file')
+    if not file:
+        messages.error(request, 'Chưa chọn file!')
+        return redirect('admin_tonkho_list')
+
+    if not file.name.endswith(('.xlsx', '.xls')):
+        messages.error(request, 'Chỉ hỗ trợ file .xlsx hoặc .xls!')
+        return redirect('admin_tonkho_list')
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(file, data_only=True)
+        ws = wb.active
+
+        rows = list(ws.iter_rows(min_row=2, values_only=True))  # bo dong tieu de
+        if not rows:
+            messages.warning(request, 'File Excel trống (không có dữ liệu)!')
+            return redirect('admin_tonkho_list')
+
+        # Cache ten -> obj
+        ch_map = {ch.ten_cua_hang.strip().lower(): ch for ch in CuaHang.objects.all()}
+        mh_map = {mh.ten_mat_hang.strip().lower(): mh for mh in MatHang.objects.all()}
+
+        thanh_cong = 0
+        loi = []
+        for idx, row in enumerate(rows, start=2):
+            if not row or len(row) < 3:
+                loi.append(f'Dòng {idx}: thiếu cột')
+                continue
+            ten_ch = str(row[0] or '').strip()
+            ten_mh = str(row[1] or '').strip()
+            try:
+                so_luong = int(row[2])
+            except (TypeError, ValueError):
+                loi.append(f'Dòng {idx}: số lượng không hợp lệ ({row[2]})')
+                continue
+
+            if so_luong < 0:
+                loi.append(f'Dòng {idx}: số lượng âm ({so_luong})')
+                continue
+
+            cua_hang = ch_map.get(ten_ch.lower())
+            if not cua_hang:
+                loi.append(f'Dòng {idx}: không tìm thấy cửa hàng "{ten_ch}"')
+                continue
+            mat_hang = mh_map.get(ten_mh.lower())
+            if not mat_hang:
+                loi.append(f'Dòng {idx}: không tìm thấy mặt hàng "{ten_mh}"')
+                continue
+
+            ton_kho, created = TonKho.objects.get_or_create(
+                cua_hang=cua_hang, mat_hang=mat_hang,
+                defaults={'so_luong': so_luong}
+            )
+            if not created:
+                ton_kho.so_luong += so_luong
+                ton_kho.save()
+            thanh_cong += 1
+
+        ghi_nhat_ky(
+            request,
+            module='Tồn kho',
+            hanh_dong='import',
+            mo_ta=f"Nhập Excel tồn kho: {thanh_cong} dòng thành công, {len(loi)} lỗi"
+        )
+
+        if thanh_cong:
+            messages.success(request, f'Nhập thành công {thanh_cong} dòng từ Excel!')
+        for l in loi[:10]:  # gioi han hien thi 10 loi
+            messages.error(request, l)
+        if len(loi) > 10:
+            messages.warning(request, f'... và {len(loi) - 10} lỗi khác.')
+
+    except Exception as e:
+        messages.error(request, f'Lỗi đọc file Excel: {e}')
+
+    return redirect('admin_tonkho_list')
+
+
 # ====== ADMIN CRUD: DON HANG ======
 
 @admin_required
@@ -2236,3 +2512,30 @@ def user_don_hang(request):
         'don_hangs': don_hangs,
         'review_history': review_history,
     })
+
+
+@login_required(login_url='/dang-nhap/')
+def api_user_donhang_detail(request, id):
+    """API tra ve JSON chi tiet don hang cua user (cho in PDF)"""
+    don_hang = get_object_or_404(DonHang, id=id, nguoi_dung=request.user)
+    chi_tiets = don_hang.chi_tiets.select_related('mat_hang').all()
+    data = {
+        'id': don_hang.id,
+        'cua_hang': don_hang.cua_hang.ten_cua_hang,
+        'ngay_dat': don_hang.ngay_dat.strftime('%d/%m/%Y %H:%M') if don_hang.ngay_dat else '',
+        'trang_thai': don_hang.get_trang_thai_display(),
+        'ghi_chu': don_hang.ghi_chu or 'Khong co',
+        'tong_tien': float(don_hang.tong_tien or 0),
+        'nguoi_dat': dinh_dang_ten_nguoi_dung(don_hang.nguoi_dung),
+        'chi_tiets': [
+            {
+                'stt': i + 1,
+                'ten': ct.mat_hang.ten_mat_hang,
+                'so_luong': ct.so_luong,
+                'don_gia': float(ct.don_gia or 0),
+                'thanh_tien': float(ct.thanh_tien or 0),
+            } for i, ct in enumerate(chi_tiets)
+        ]
+    }
+    return JsonResponse(data)
+

@@ -12,6 +12,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <!-- Fullscreen plugin -->
+    <link rel="stylesheet"
+        href="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css" />
+    <!-- MiniMap plugin -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.css" />
 
     <style>
         * {
@@ -616,25 +621,33 @@
         <h1>🗺️ Bản Đồ Cửa Hàng Tiện Lợi</h1>
         <div class="header-links">
             {% if user.is_authenticated %}
-            <span style="color: #a8d8ff;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}{% if user.first_name %}{{ user.first_name }}{% else %}{{ user.username }}{% endif %}</span>
+            <span style="color: #a8d8ff;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}
+                {% if user.first_name %}{{ user.first_name }}
+                {% else %}{{ user.username }}
+                {% endif %}
+            </span>
             <a href="{% url 'user_don_hang' %}">📦 Đơn hàng</a>
             {% if user.is_staff %}
             <div class="admin-notif-wrap">
-                <button type="button" class="admin-notif-btn" onclick="toggle_admin_notif_dropdown()" title="Thông báo admin">
+                <button type="button" class="admin-notif-btn" onclick="toggle_admin_notif_dropdown()"
+                    title="Thông báo admin">
                     🔔
-                    <span id="admin-notif-badge" class="admin-notif-badge" {% if not admin_unread_count %}style="display:none;"{% endif %}>{{ admin_unread_count }}</span>
+                    <span id="admin-notif-badge" class="admin-notif-badge" {% if not admin_unread_count%}style="display:none;" {% endif %}>{{ admin_unread_count }}</span>
                 </button>
                 <div id="admin-notif-dropdown" class="admin-notif-dropdown">
                     <div class="admin-notif-head">
                         <strong>Thông báo đơn hàng</strong>
-                        <a href="{% url 'admin_thong_bao_doc_tat_ca' %}" class="btn btn-sm" style="background:#edf2f7; text-decoration:none;">Đánh dấu đã đọc</a>
+                        <a href="{% url 'admin_thong_bao_doc_tat_ca' %}" class="btn btn-sm"
+                            style="background:#edf2f7; text-decoration:none;">Đánh dấu đã đọc</a>
                     </div>
                     <div id="admin-notif-list" class="admin-notif-list">
                         <div class="loading">Đang tải thông báo...</div>
                     </div>
                     <div class="admin-notif-actions">
-                        <a href="{% url 'admin_thong_bao_list' %}" style="font-size:0.85rem; color:#4c51bf; text-decoration:none;">Xem tất cả</a>
-                        <a href="{% url 'admin_dashboard' %}" style="font-size:0.85rem; color:#4a5568; text-decoration:none;">Vào quản trị</a>
+                        <a href="{% url 'admin_thong_bao_list' %}"
+                            style="font-size:0.85rem; color:#4c51bf; text-decoration:none;">Xem tất cả</a>
+                        <a href="{% url 'admin_dashboard' %}"
+                            style="font-size:0.85rem; color:#4a5568; text-decoration:none;">Vào quản trị</a>
                     </div>
                 </div>
             </div>
@@ -673,13 +686,10 @@
                 <h2>Tìm Cửa Hàng</h2>
                 <div class="control-group store-autocomplete-wrap">
                     <label for="search-store">Tên hoặc địa chỉ</label>
-                    <input type="text" id="search-store" placeholder="Gõ để gợi ý cửa hàng..."
-                        autocomplete="off"
+                    <input type="text" id="search-store" placeholder="Gõ để gợi ý cửa hàng..." autocomplete="off"
                         style="width:100%; padding: 0.6rem; border: 2px solid #e1e8ed; border-radius: 5px; font-size: 0.9rem;"
-                        oninput="goi_y_tim_cua_hang()"
-                        onfocus="goi_y_tim_cua_hang()"
-                        onkeydown="phim_tim_cua_hang(event)"
-                        onblur="an_goi_y_tim_cua_hang_sau()">
+                        oninput="goi_y_tim_cua_hang()" onfocus="goi_y_tim_cua_hang()"
+                        onkeydown="phim_tim_cua_hang(event)" onblur="an_goi_y_tim_cua_hang_sau()">
                     <div id="store-autocomplete-list" class="store-autocomplete-dropdown" style="display:none;"></div>
                 </div>
             </div>
@@ -702,7 +712,8 @@
                     </div>
 
                     <button onclick="calculateRoute()" class="btn btn-success">Tìm Đường</button>
-                    <button onclick="tim_cua_hang_gan_nhat()" class="btn btn-primary" style="width:100%; margin-top:6px;">Tìm Cửa Hàng Gần Nhất</button>
+                    <button onclick="tim_cua_hang_gan_nhat()" class="btn btn-primary"
+                        style="width:100%; margin-top:6px;">Tìm Cửa Hàng Gần Nhất</button>
                     <button onclick="clearRoute()" class="btn btn-danger">Xóa</button>
                 </div>
 
@@ -780,6 +791,26 @@
     <!-- Overlay -->
     <div class="overlay" id="overlay" onclick="dong_panel_danh_gia()"></div>
 
+    <!-- Store Comparison Modal -->
+    <div id="modal-so-sanh"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center;">
+        <div
+            style="background:white; border-radius:16px; padding:30px; max-width:750px; width:95%; max-height:85vh; overflow:auto; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <button onclick="dong_modal_so_sanh()"
+                style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:22px; cursor:pointer; color:#666;">✕</button>
+            <h2 style="margin-bottom:20px; text-align:center; color:#333;">⚖️ So Sánh Cửa Hàng</h2>
+            <div id="noi-dung-so-sanh"></div>
+        </div>
+    </div>
+
+    <!-- Map Chart Toggle -->
+    <div style="position:fixed; top:160px; right:10px; z-index:1000; display:flex; flex-direction:column; gap:8px;">
+        <button id="btn-toggle-chart" onclick="toggle_bieu_do_ban_do()"
+            style="padding:10px 16px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:0 4px 15px rgba(102,126,234,0.4);">
+            📊 Biểu Đồ
+        </button>
+    </div>
+
     <!-- Review Panel -->
     <div class="review-panel" id="review-panel">
         <div class="review-panel-header">
@@ -795,6 +826,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.js"></script>
 
     <!-- GIS Tools Library -->
     <script src="{% static 'js/gis_tools.js' %}"></script>
@@ -802,28 +835,43 @@
     <script>
         window.WEBGIS_HISTORY_USER_KEY = "{% if user.is_authenticated %}{{ user.username|escapejs }}{% else %}guest{% endif %}";
         // Du lieu cua hang tu Django - load vao bien toan cuc
+        // Du lieu cua hang tu Django - load vao bien toan cuc
 du_lieu_cua_hang = [
-{% for sd in stores_data %}
-{
-    "id": {{ sd.store.id }},
-    "ten": "{{ sd.store.ten_cua_hang|escapejs }}",
-    "dia_chi": "{{ sd.store.dia_chi|escapejs }}",
-    "loai": "{{ sd.store.loai.ten_loai|escapejs }}",
-    "loai_id": {{ sd.store.loai.id }},
-    "vi_do": {% if sd.store.geom %}{{ sd.store.geom.y }}{% else %}null{% endif %},
-    "kinh_do": {% if sd.store.geom %}{{ sd.store.geom.x }}{% else %}null{% endif %},
-    "co_su_kien": {{ sd.has_events|lower }},
-    "danh_sach_su_kien": [
-        {% for event in sd.events %}
-        "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %}, {% endif %}
-        {% endfor %}
-    ],
-    "so_don_thanh_toan": {{ sd.order_count }},
-    "so_danh_gia": {{ sd.review_count }},
-    "khoang_cach": null,
-    "dau_hieu": null
-}{% if not forloop.last %}, {% endif %}
-{% endfor %}
+    {% for sd in stores_data %}
+    {
+        "id": {{ sd.store.id }},
+        "ten": "{{ sd.store.ten_cua_hang|escapejs }}",
+        "dia_chi": "{{ sd.store.dia_chi|escapejs }}",
+        "loai": "{{ sd.store.loai.ten_loai|escapejs }}",
+        "loai_id": {{ sd.store.loai.id }},
+
+        "vi_do": {% if sd.store.geom %}{{ sd.store.geom.y }}{% else %}null{% endif %},
+        "kinh_do": {% if sd.store.geom %}{{ sd.store.geom.x }}{% else %}null{% endif %},
+
+        "co_su_kien": {{ sd.has_events|lower }},
+
+        "danh_sach_su_kien": [
+            {% for event in sd.events %}
+            "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        ],
+
+        "so_don_thanh_toan": {{ sd.order_count }},
+        "so_danh_gia": {{ sd.review_count }},
+        "diem_tb": {{ sd.diem_tb }},
+
+        "phan_bo_sao": {
+            "1": {{ sd.phan_bo_sao.1 }},
+            "2": {{ sd.phan_bo_sao.2 }},
+            "3": {{ sd.phan_bo_sao.3 }},
+            "4": {{ sd.phan_bo_sao.4 }},
+            "5": {{ sd.phan_bo_sao.5 }}
+        },
+
+        "khoang_cach": null,
+        "dau_hieu": null
+    }{% if not forloop.last %}, {% endif %}
+    {% endfor %}
 ];
         // Khoi tao ban do khi DOM da san sang
         document.addEventListener('DOMContentLoaded', function () {

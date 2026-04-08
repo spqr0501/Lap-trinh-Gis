@@ -18,6 +18,7 @@ urlpatterns = [
     path('quan-ly/login/', views.admin_login, name='admin_login'),
     path('quan-ly/logout/', views.admin_logout, name='admin_logout'),
     path('quan-ly/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('api/dashboard-revenue/', views.api_dashboard_revenue, name='api_dashboard_revenue'),
     path('quan-ly/audit-log/', views.admin_audit_log, name='admin_audit_log'),
     path('quan-ly/thong-bao/', views.admin_thong_bao_list, name='admin_thong_bao_list'),
     path('quan-ly/thong-bao/<int:id>/doc/', views.admin_thong_bao_doc, name='admin_thong_bao_doc'),
@@ -65,6 +66,7 @@ urlpatterns = [
     path('quan-ly/tonkho/create/', views.admin_tonkho_create, name='admin_tonkho_create'),
     path('quan-ly/tonkho/<int:id>/update/', views.admin_tonkho_update, name='admin_tonkho_update'),
     path('quan-ly/tonkho/<int:id>/delete/', views.admin_tonkho_delete, name='admin_tonkho_delete'),
+    path('quan-ly/tonkho/import-excel/', views.admin_tonkho_import_excel, name='admin_tonkho_import_excel'),
 
     # Admin CRUD: Don Hang
     path('quan-ly/donhang/', views.admin_donhang_list, name='admin_donhang_list'),
@@ -86,4 +88,5 @@ urlpatterns = [
     # User: Dat hang
     path('dat-hang/<int:cua_hang_id>/', views.user_dat_hang, name='user_dat_hang'),
     path('don-hang-cua-toi/', views.user_don_hang, name='user_don_hang'),
+    path('api/don-hang/<int:id>/', views.api_user_donhang_detail, name='api_user_donhang_detail'),
 ]

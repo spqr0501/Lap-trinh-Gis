@@ -229,6 +229,26 @@ function khoi_tao_ban_do(id_container, vi_do, kinh_do, muc_zoom) {
 
     them_chu_giai_ban_do();
 
+    // Fullscreen control
+    if (L.control.fullscreen) {
+        L.control.fullscreen({ position: 'topleft' }).addTo(ban_do);
+    }
+
+    // Scale bar (metric)
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(ban_do);
+
+    // MiniMap (ban do tong quan goc duoi phai)
+    if (L.Control.MiniMap) {
+        var miniMapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            minZoom: 0, maxZoom: 13
+        });
+        new L.Control.MiniMap(miniMapLayer, {
+            toggleDisplay: true,
+            minimized: false,
+            position: 'bottomright'
+        }).addTo(ban_do);
+    }
+
     // Gan su kien click cho chon diem
     ban_do.on('click', function (su_kien) {
         if (dang_chon_diem_bat_dau) {
@@ -512,6 +532,7 @@ function hien_thi_danh_sach_cua_hang(id_bo_loc, id_danh_sach) {
             }
 
             html += '<button onclick="event.stopPropagation(); xem_danh_gia(' + cua_hang.id + ', \'' + cua_hang.ten.replace(/'/g, "\\'") + '\')" style="margin-top:6px; padding:4px 10px; font-size:0.8rem; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer;">⭐ Xem Đánh Giá</button>';
+            html += ' <button class="btn-so-sanh" data-id="' + cua_hang.id + '" onclick="event.stopPropagation(); toggle_so_sanh(' + cua_hang.id + ')" style="margin-top:6px; padding:4px 10px; font-size:0.8rem; background:#667eea; color:white; border:none; border-radius:4px; cursor:pointer;">⚖️ So sánh</button>';
             html += '</div>';
         });
     }
@@ -1512,26 +1533,26 @@ function toggle_like_danh_gia(danh_gia_id) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': lay_csrf_token() }
     })
-    .then(function (res) { return res.json(); })
-    .then(function (data) {
-        if (!data.thanh_cong) {
-            alert(data.loi || 'Không thể like đánh giá');
-            return;
-        }
-        if (review_panel_state.data && review_panel_state.data.danh_gias) {
-            review_panel_state.data.danh_gias = review_panel_state.data.danh_gias.map(function (dg) {
-                if (dg.id === danh_gia_id) {
-                    dg.so_like = data.so_like || 0;
-                    dg.da_like = !!data.da_like;
-                }
-                return dg;
-            });
-            render_review_panel_body(review_panel_state.data);
-        }
-    })
-    .catch(function () {
-        alert('Bạn cần đăng nhập để like đánh giá.');
-    });
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (!data.thanh_cong) {
+                alert(data.loi || 'Không thể like đánh giá');
+                return;
+            }
+            if (review_panel_state.data && review_panel_state.data.danh_gias) {
+                review_panel_state.data.danh_gias = review_panel_state.data.danh_gias.map(function (dg) {
+                    if (dg.id === danh_gia_id) {
+                        dg.so_like = data.so_like || 0;
+                        dg.da_like = !!data.da_like;
+                    }
+                    return dg;
+                });
+                render_review_panel_body(review_panel_state.data);
+            }
+        })
+        .catch(function () {
+            alert('Bạn cần đăng nhập để like đánh giá.');
+        });
 }
 
 function dong_panel_danh_gia() {
@@ -1786,4 +1807,182 @@ function lay_csrf_token() {
         if (c.startsWith(name + '=')) return c.substring(name.length + 1);
     }
     return '';
+}
+
+
+// ============================================================================
+// BIEU DO TREN BAN DO - MAP CHARTS (PIE CHART ON MARKERS)
+// ============================================================================
+
+var dang_bat_bieu_do = false;
+var lop_bieu_do_markers = [];
+
+/**
+ * Tao SVG pie chart mini tu phan bo sao
+ */
+function tao_pie_chart_svg(phan_bo, kich_thuoc) {
+    kich_thuoc = kich_thuoc || 40;
+    var mau_sac = ['#ff4444', '#ff8800', '#ffcc00', '#8bc34a', '#4caf50'];
+    var tong = 0;
+    for (var k = 1; k <= 5; k++) tong += (phan_bo[k] || 0);
+    if (tong === 0) {
+        return '<svg width="' + kich_thuoc + '" height="' + kich_thuoc + '" viewBox="0 0 40 40">' +
+            '<circle cx="20" cy="20" r="18" fill="#ddd" stroke="#999" stroke-width="1"/>' +
+            '<text x="20" y="24" text-anchor="middle" font-size="11" fill="#999">?</text></svg>';
+    }
+    var r = 18, cx = 20, cy = 20;
+    var goc_hien_tai = -90;
+    var duong_dan = '';
+    for (var i = 1; i <= 5; i++) {
+        var so_luong = phan_bo[i] || 0;
+        if (so_luong === 0) continue;
+        var goc_cung = (so_luong / tong) * 360;
+        if (so_luong === tong) {
+            duong_dan += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + mau_sac[i - 1] + '"/>';
+        } else {
+            var x1 = cx + r * Math.cos(Math.PI * goc_hien_tai / 180);
+            var y1 = cy + r * Math.sin(Math.PI * goc_hien_tai / 180);
+            var goc_cuoi = goc_hien_tai + goc_cung;
+            var x2 = cx + r * Math.cos(Math.PI * goc_cuoi / 180);
+            var y2 = cy + r * Math.sin(Math.PI * goc_cuoi / 180);
+            var co_lon = goc_cung > 180 ? 1 : 0;
+            duong_dan += '<path d="M' + cx + ',' + cy + ' L' + x1.toFixed(2) + ',' + y1.toFixed(2) +
+                ' A' + r + ',' + r + ' 0 ' + co_lon + ',1 ' + x2.toFixed(2) + ',' + y2.toFixed(2) +
+                ' Z" fill="' + mau_sac[i - 1] + '"/>';
+        }
+        goc_hien_tai += goc_cung;
+    }
+    var diem_tb = 0;
+    for (var j = 1; j <= 5; j++) diem_tb += j * (phan_bo[j] || 0);
+    diem_tb = (diem_tb / tong).toFixed(1);
+    return '<svg width="' + kich_thuoc + '" height="' + kich_thuoc + '" viewBox="0 0 40 40">' +
+        duong_dan +
+        '<circle cx="20" cy="20" r="10" fill="white" stroke="#fff" stroke-width="1"/>' +
+        '<text x="20" y="24" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">' + diem_tb + '★</text>' +
+        '</svg>';
+}
+
+/**
+ * Toggle bieu do pie chart tren ban do
+ */
+function toggle_bieu_do_ban_do() {
+    dang_bat_bieu_do = !dang_bat_bieu_do;
+    var btn = document.getElementById('btn-toggle-chart');
+    if (dang_bat_bieu_do) {
+        btn.textContent = '📊 Tắt Biểu Đồ';
+        btn.style.background = '#e53e3e';
+        hien_bieu_do_tren_ban_do();
+    } else {
+        btn.textContent = '📊 Biểu Đồ';
+        btn.style.background = 'linear-gradient(135deg,#667eea,#764ba2)';
+        xoa_bieu_do_tren_ban_do();
+    }
+}
+
+function hien_bieu_do_tren_ban_do() {
+    xoa_bieu_do_tren_ban_do();
+    du_lieu_cua_hang.forEach(function (ch) {
+        if (!ch.vi_do || !ch.kinh_do || !ch.phan_bo_sao) return;
+        var tong = 0;
+        for (var k = 1; k <= 5; k++) tong += (ch.phan_bo_sao[k] || 0);
+        if (tong === 0) return;
+        var svg = tao_pie_chart_svg(ch.phan_bo_sao, 46);
+        var icon = L.divIcon({
+            html: '<div style="cursor:pointer;" title="' + ch.ten + ' - ' + ch.diem_tb + '★ (' + tong + ' đánh giá)">' + svg + '</div>',
+            className: 'marker-bieu-do',
+            iconSize: [46, 46],
+            iconAnchor: [23, 23]
+        });
+        var marker = L.marker([ch.vi_do, ch.kinh_do], { icon: icon, interactive: true });
+        marker.bindPopup(tao_noi_dung_popup_cua_hang(ch), { minWidth: 200 });
+        marker.addTo(ban_do);
+        lop_bieu_do_markers.push(marker);
+    });
+}
+
+function xoa_bieu_do_tren_ban_do() {
+    lop_bieu_do_markers.forEach(function (m) { ban_do.removeLayer(m); });
+    lop_bieu_do_markers = [];
+}
+
+
+// ============================================================================
+// SO SANH CUA HANG - STORE COMPARISON
+// ============================================================================
+
+var danh_sach_so_sanh = [];
+
+function toggle_so_sanh(id_cua_hang) {
+    var vi_tri = danh_sach_so_sanh.indexOf(id_cua_hang);
+    if (vi_tri > -1) {
+        danh_sach_so_sanh.splice(vi_tri, 1);
+    } else {
+        if (danh_sach_so_sanh.length >= 2) {
+            danh_sach_so_sanh.shift();
+        }
+        danh_sach_so_sanh.push(id_cua_hang);
+    }
+    // Cap nhat UI nutton
+    var nut_ss = document.querySelectorAll('.btn-so-sanh');
+    nut_ss.forEach(function (btn) {
+        var bid = parseInt(btn.getAttribute('data-id'));
+        if (danh_sach_so_sanh.indexOf(bid) > -1) {
+            btn.style.background = '#e53e3e';
+            btn.textContent = '✓ Đã chọn';
+        } else {
+            btn.style.background = '#667eea';
+            btn.textContent = '⚖️ So sánh';
+        }
+    });
+    if (danh_sach_so_sanh.length === 2) {
+        hien_modal_so_sanh();
+    }
+}
+
+function hien_modal_so_sanh() {
+    var ch1 = du_lieu_cua_hang.find(function (c) { return c.id === danh_sach_so_sanh[0]; });
+    var ch2 = du_lieu_cua_hang.find(function (c) { return c.id === danh_sach_so_sanh[1]; });
+    if (!ch1 || !ch2) return;
+
+    var tao_dong = function (nhan, gt1, gt2) {
+        return '<tr><td style="font-weight:600; color:#555; padding:10px 12px; background:#f9fafb; width:30%;">' + nhan + '</td>' +
+            '<td style="padding:10px 12px; text-align:center;">' + gt1 + '</td>' +
+            '<td style="padding:10px 12px; text-align:center;">' + gt2 + '</td></tr>';
+    };
+
+    var pie1 = tao_pie_chart_svg(ch1.phan_bo_sao || {}, 60);
+    var pie2 = tao_pie_chart_svg(ch2.phan_bo_sao || {}, 60);
+
+    var kc1 = ch1.khoang_cach != null ? ch1.khoang_cach.toFixed(2) + ' km' : 'N/A';
+    var kc2 = ch2.khoang_cach != null ? ch2.khoang_cach.toFixed(2) + ' km' : 'N/A';
+
+    var html = '<table style="width:100%; border-collapse:collapse; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
+        '<thead><tr><th style="padding:12px; background:#667eea; color:white; width:30%;">Tiêu chí</th>' +
+        '<th style="padding:12px; background:#667eea; color:white; width:35%;">' + ch1.ten + '</th>' +
+        '<th style="padding:12px; background:#764ba2; color:white; width:35%;">' + ch2.ten + '</th></tr></thead><tbody>' +
+        tao_dong('Loại', ch1.loai, ch2.loai) +
+        tao_dong('Địa chỉ', ch1.dia_chi, ch2.dia_chi) +
+        tao_dong('Điểm TB', '<span style="font-size:1.3em; font-weight:700; color:#f59e0b;">' + (ch1.diem_tb || 0) + ' ★</span>', '<span style="font-size:1.3em; font-weight:700; color:#f59e0b;">' + (ch2.diem_tb || 0) + ' ★</span>') +
+        tao_dong('Phân Bố Sao', pie1, pie2) +
+        tao_dong('Số Đánh Giá', '<b>' + (ch1.so_danh_gia || 0) + '</b>', '<b>' + (ch2.so_danh_gia || 0) + '</b>') +
+        tao_dong('Số Đơn Thanh Toán', '<b>' + (ch1.so_don_thanh_toan || 0) + '</b>', '<b>' + (ch2.so_don_thanh_toan || 0) + '</b>') +
+        tao_dong('Khoảng Cách', kc1, kc2) +
+        tao_dong('Có Sự Kiện', ch1.co_su_kien ? '<span style="color:green;">✅ Có</span>' : '<span style="color:#999;">❌ Không</span>',
+            ch2.co_su_kien ? '<span style="color:green;">✅ Có</span>' : '<span style="color:#999;">❌ Không</span>') +
+        '</tbody></table>';
+
+    document.getElementById('noi-dung-so-sanh').innerHTML = html;
+    var modal = document.getElementById('modal-so-sanh');
+    modal.style.display = 'flex';
+}
+
+function dong_modal_so_sanh() {
+    document.getElementById('modal-so-sanh').style.display = 'none';
+    danh_sach_so_sanh = [];
+    // Reset buttons
+    var nut_ss = document.querySelectorAll('.btn-so-sanh');
+    nut_ss.forEach(function (btn) {
+        btn.style.background = '#667eea';
+        btn.textContent = '⚖️ So sánh';
+    });
 }
