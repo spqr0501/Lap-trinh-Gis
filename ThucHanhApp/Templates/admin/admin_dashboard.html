@@ -1,13 +1,9 @@
-{% extends 'admin/base_admin.html' %}
+﻿{% extends 'admin/base_admin.html' %}
 
 {% block title %}Dashboard Admin{% endblock %}
 
 {% block extra_css %}
 <style>
-    /**
-     * GRID STAT CARDS
-     * Luoi hien thi cac the thong ke
-     */
     .luoi-thong-ke {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -15,10 +11,6 @@
         margin-bottom: 2rem;
     }
 
-    /**
-     * STAT CARD (The thong ke)
-     * Hien thi so lieu thong ke voi icon va mau sac
-     */
     .the-thong-ke {
         background: white;
         border-radius: 12px;
@@ -100,10 +92,6 @@
         gap: 0.8rem;
     }
 
-    /**
-     * MAU GRADIENT CHO TUNG THE
-     * Color gradients for each card type
-     */
     .the-loai {
         --mau-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
@@ -120,20 +108,12 @@
         --mau-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
     }
 
-    /**
-     * BANG DANH GIA
-     * Reviews table styling
-     */
     .rating {
         color: #fbbf24;
         font-size: 1.1rem;
         letter-spacing: 2px;
     }
 
-    /**
-     * LOI CHAO
-     * Welcome message
-     */
     .loi-chao {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -190,7 +170,7 @@
         margin-bottom: 0.8rem;
     }
 
-    .thanh-trang-thai > span {
+    .thanh-trang-thai>span {
         display: block;
         height: 100%;
     }
@@ -219,21 +199,40 @@
     .hang-top-store strong {
         color: #2d3748;
     }
+
+    .filter-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-btn {
+        padding: 0.4rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 20px;
+        background: white;
+        color: #4a5568;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .filter-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .filter-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<!--
-    Trang Dashboard Quan Tri
-    Admin Dashboard Page
-    
-    GIAI THICH:
-    - Hien thi tong quan thong ke he thong
-    - Co cac the (cards) hien thi so lieu
-    - Bang danh gia gan day
-    - Responsive design
--->
-
 <div class="loi-chao">
     <div>
         <h1>Dashboard Quản Trị</h1>
@@ -243,59 +242,36 @@
 </div>
 
 <div class="luoi-thong-ke">
-    <!-- The Loai Cua Hang -->
     <div class="the-thong-ke the-loai">
         <div class="noi-dung-the">
-            <div class="icon-the">
-                <i class="fas fa-tags"></i>
-            </div>
+            <div class="icon-the"><i class="fas fa-tags"></i></div>
             <div class="so-lieu-the">{{ stats.loai_count }}</div>
             <div class="tieu-de-the">Loại Cửa Hàng</div>
-            <a href="{% url 'admin_loai_list' %}" class="link-the">
-                Quản lý <i class="fas fa-arrow-right"></i>
-            </a>
+            <a href="{% url 'admin_loai_list' %}" class="link-the">Quản lý <i class="fas fa-arrow-right"></i></a>
         </div>
     </div>
-
-    <!-- The Cua Hang -->
     <div class="the-thong-ke the-cua-hang">
         <div class="noi-dung-the">
-            <div class="icon-the">
-                <i class="fas fa-store"></i>
-            </div>
+            <div class="icon-the"><i class="fas fa-store"></i></div>
             <div class="so-lieu-the">{{ stats.cuahang_count }}</div>
             <div class="tieu-de-the">Cửa Hàng</div>
-            <a href="{% url 'admin_cuahang_list' %}" class="link-the">
-                Quản lý <i class="fas fa-arrow-right"></i>
-            </a>
+            <a href="{% url 'admin_cuahang_list' %}" class="link-the">Quản lý <i class="fas fa-arrow-right"></i></a>
         </div>
     </div>
-
-    <!-- The Danh Gia -->
     <div class="the-thong-ke the-danh-gia">
         <div class="noi-dung-the">
-            <div class="icon-the">
-                <i class="fas fa-star"></i>
-            </div>
+            <div class="icon-the"><i class="fas fa-star"></i></div>
             <div class="so-lieu-the">{{ stats.danhgia_count }}</div>
             <div class="tieu-de-the">Đánh Giá</div>
-            <a href="{% url 'admin_danhgia_list' %}" class="link-the">
-                Quản lý <i class="fas fa-arrow-right"></i>
-            </a>
+            <a href="{% url 'admin_danhgia_list' %}" class="link-the">Quản lý <i class="fas fa-arrow-right"></i></a>
         </div>
     </div>
-
-    <!-- The Su Kien -->
     <div class="the-thong-ke the-su-kien">
         <div class="noi-dung-the">
-            <div class="icon-the">
-                <i class="fas fa-calendar-alt"></i>
-            </div>
+            <div class="icon-the"><i class="fas fa-calendar-alt"></i></div>
             <div class="so-lieu-the">{{ stats.sukien_count }}</div>
             <div class="tieu-de-the">Sự Kiện</div>
-            <a href="{% url 'admin_sukien_list' %}" class="link-the">
-                Quản lý <i class="fas fa-arrow-right"></i>
-            </a>
+            <a href="{% url 'admin_sukien_list' %}" class="link-the">Quản lý <i class="fas fa-arrow-right"></i></a>
         </div>
     </div>
 </div>
@@ -303,13 +279,19 @@
 <div class="khung-grid">
     <div class="mini-card">
         <h3>Đơn Hàng Tổng Quan</h3>
-        <p><strong>Tổng:</strong> {{ order_stats.tong }} | <strong>Hôm nay:</strong> {{ order_stats.hom_nay }} | <strong>Tháng này:</strong> {{ order_stats.thang_nay }}</p>
+        <p><strong>Tổng:</strong> {{ order_stats.tong }} | <strong>Hôm nay:</strong> {{ order_stats.hom_nay }} |
+            <strong>Tháng này:</strong> {{ order_stats.thang_nay }}
+        </p>
         {% with total=order_stats.tong %}
         <div class="thanh-trang-thai">
-            <span style="background:#f6ad55; width:{% if total %}{% widthratio order_stats.cho_xu_ly total 100 %}{% else %}0{% endif %}%"></span>
-            <span style="background:#63b3ed; width:{% if total %}{% widthratio order_stats.dang_giao total 100 %}{% else %}0{% endif %}%"></span>
-            <span style="background:#68d391; width:{% if total %}{% widthratio order_stats.da_thanh_toan total 100 %}{% else %}0{% endif %}%"></span>
-            <span style="background:#fc8181; width:{% if total %}{% widthratio order_stats.da_huy total 100 %}{% else %}0{% endif %}%"></span>
+            <span
+                style="background:#f6ad55; width:{% if total %}{% widthratio order_stats.cho_xu_ly total 100 %}{% else %}0{% endif %}%"></span>
+            <span
+                style="background:#63b3ed; width:{% if total %}{% widthratio order_stats.dang_giao total 100 %}{% else %}0{% endif %}%"></span>
+            <span
+                style="background:#68d391; width:{% if total %}{% widthratio order_stats.da_thanh_toan total 100 %}{% else %}0{% endif %}%"></span>
+            <span
+                style="background:#fc8181; width:{% if total %}{% widthratio order_stats.da_huy total 100 %}{% else %}0{% endif %}%"></span>
         </div>
         {% endwith %}
         <div class="chu-thich-trang-thai">
@@ -319,23 +301,54 @@
             <div>🟥 Đã hủy: {{ order_stats.da_huy }}</div>
         </div>
     </div>
-
     <div class="mini-card">
         <h3>Top Cửa Hàng Doanh Thu</h3>
         {% for store in top_store_revenue %}
-            <div class="hang-top-store">
-                <strong>{{ store.cua_hang__ten_cua_hang }}</strong>
-                <span>{{ store.tong|floatformat:0 }} đ ({{ store.so_don }} đơn)</span>
-            </div>
+        <div class="hang-top-store">
+            <strong>{{ store.cua_hang__ten_cua_hang }}</strong>
+            <span>{{ store.tong|floatformat:0 }} đ ({{ store.so_don }} đơn)</span>
+        </div>
         {% empty %}
-            <p>Chưa có doanh thu thanh toán.</p>
+        <p>Chưa có doanh thu thanh toán.</p>
         {% endfor %}
     </div>
 </div>
 
-<div class="card">
-    <h2>Biểu Đồ Doanh Thu 6 Tháng Gần Nhất</h2>
-    <canvas id="revenueChart" height="90"></canvas>
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 id="revenueTitle">📈 Doanh Thu</h2>
+    <div class="filter-group">
+        <button class="filter-btn" data-filter="7ngay">7 Ngày</button>
+        <button class="filter-btn" data-filter="30ngay">30 Ngày</button>
+        <button class="filter-btn" data-filter="thang_truoc">Tháng trước</button>
+        <button class="filter-btn" data-filter="quy_nay">Quý này</button>
+        <button class="filter-btn active" data-filter="6thang">6 Tháng</button>
+        <button class="filter-btn" data-filter="12thang">12 Tháng</button>
+        <button class="filter-btn" data-filter="nam_nay">Năm nay</button>
+        <button class="filter-btn" data-filter="nam_truoc">Năm trước</button>
+    </div>
+    <canvas id="revenueChart" height="80"></canvas>
+</div>
+
+<div class="khung-grid" style="margin-bottom:1.5rem;">
+    <div class="mini-card">
+        <h3>📊 Doanh Thu 7 Ngày Qua</h3>
+        <canvas id="dailyChart" height="160"></canvas>
+    </div>
+    <div class="mini-card">
+        <h3>📅 Doanh Thu Theo Quý</h3>
+        <canvas id="quarterChart" height="160"></canvas>
+    </div>
+</div>
+
+<div class="khung-grid" style="margin-bottom:1.5rem;">
+    <div class="mini-card">
+        <h3>⭐ Top Cửa Hàng Đánh Giá Cao Nhất</h3>
+        <canvas id="ratingChart" height="160"></canvas>
+    </div>
+    <div class="mini-card">
+        <h3>🌟 Phân Bố Sao Toàn Hệ Thống</h3>
+        <canvas id="starDistChart" height="160"></canvas>
+    </div>
 </div>
 
 <div class="card">
@@ -354,35 +367,16 @@
             {% for dg in recent_reviews %}
             <tr>
                 <td><strong>{{ dg.cua_hang.ten_cua_hang }}</strong></td>
-                <td>
-                    {% if dg.nguoi_dung %}
-                        {% if dg.nguoi_dung.last_name %}
-                            {{ dg.nguoi_dung.last_name }}
-                        {% endif %}
-                        {% if dg.nguoi_dung.first_name %}
-                            {{ dg.nguoi_dung.first_name }}
-                        {% endif %}
-                        {% if not dg.nguoi_dung.first_name and not dg.nguoi_dung.last_name %}
-                            {{ dg.nguoi_dung.username }}
-                        {% endif %}
-                    {% else %}
-                        Ẩn danh
-                    {% endif %}
-                </td>
-                <td>
-                    <span class="rating">
-                        {% for i in "12345" %}
-                        {% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %}{% endfor %} </span>
+                <td>{% if dg.nguoi_dung %}{% if dg.nguoi_dung.last_name %}{{ dg.nguoi_dung.last_name }} {% endif %}
+                    {% if dg.nguoi_dung.first_name %}{{ dg.nguoi_dung.first_name }}{% elif not dg.nguoi_dung.last_name %}{{dg.nguoi_dung.username }}{% endif %}{% else %}Ẩn danh{% endif %}</td>
+                <td><span class="rating">{% for i in "12345" %}{% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %}{% endfor %}</span>
                 </td>
                 <td>{{ dg.nhan_xet|truncatewords:15 }}</td>
                 <td>{{ dg.ngay_danh_gia|date:"d/m/Y" }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" style="text-align: center; color: #a0aec0; padding: 2rem;">
-                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
-                    Chưa có đánh giá nào
-                </td>
+                <td colspan="5" style="text-align:center; color:#a0aec0; padding:2rem;">Chưa có đánh giá nào</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -394,30 +388,97 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        var ctx = document.getElementById('revenueChart');
-        if (!ctx) return;
-        new Chart(ctx, {
+        var revenueChart = new Chart(document.getElementById('revenueChart'), {
             type: 'line',
             data: {
                 labels: [{% for l in chart_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
-                datasets: [{
-                    label: 'Doanh thu (đ)',
-                    data: [{% for v in chart_values %}{{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.12)',
-                    fill: true,
-                    tension: 0.25
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
+        datasets: [{
+            label: 'Doanh thu',
+            data: [{% for v in chart_values %}{{ v }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.12)',
+        fill: true, tension: 0.3, borderWidth: 2, pointBackgroundColor: '#667eea', pointRadius: 5
+            }]
+        },
+    options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+    });
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'bar',
+        data: {
+            labels: [{% for l in daily_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Doanh thu',
+            data: [{% for v in daily_values %}{{ v }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#43e97b', '#fbbf24'],
+        borderRadius: 6
+            }]
+        },
+    options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+    });
+    new Chart(document.getElementById('quarterChart'), {
+        type: 'bar',
+        data: {
+            labels: [{% for l in quarter_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Doanh thu',
+            data: [{% for v in quarter_values %}{{ v }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    backgroundColor: ['rgba(102,126,234,0.8)', 'rgba(118,75,162,0.8)', 'rgba(240,147,251,0.8)', 'rgba(245,87,108,0.8)'],
+        borderRadius: 8
+            }]
+        },
+    options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+    });
+    new Chart(document.getElementById('ratingChart'), {
+        type: 'bar',
+        data: {
+            labels: [{% for l in rating_store_labels %}'{{ l|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Diem TB',
+            data: [{% for v in rating_store_values %}{{ v }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    backgroundColor: ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#92400e'],
+        borderRadius: 6
+            }]
+        },
+    options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true, max: 5 } }, plugins: { legend: { display: false } } }
+    });
+    new Chart(document.getElementById('starDistChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['1 Sao', '2 Sao', '3 Sao', '4 Sao', '5 Sao'],
+            datasets: [{
+                data: [{% for v in star_dist_values %}{{ v }}{% if not forloop.last %}, {% endif %} {% endfor %}],
+    backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'],
+        borderWidth: 2, borderColor: '#fff'
+            }]
+        },
+    options: { responsive: true, cutout: '55%', plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Filter buttons logic
+    var filterLabels = {
+        '7ngay': '📊 Doanh Thu 7 Ngày Qua',
+        '30ngay': '📊 Doanh Thu 30 Ngày Qua',
+        'thang_truoc': '📅 Doanh Thu Tháng Trước',
+        'quy_nay': '📅 Doanh Thu Quý Này',
+        '6thang': '📈 Doanh Thu 6 Tháng',
+        '12thang': '📈 Doanh Thu 12 Tháng',
+        'nam_nay': '📈 Doanh Thu Năm Nay',
+        'nam_truoc': '📈 Doanh Thu Năm Trước'
+    };
+    document.querySelectorAll('.filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            var filter = this.getAttribute('data-filter');
+            document.getElementById('revenueTitle').textContent = filterLabels[filter] || 'Doanh Thu';
+            fetch('/api/dashboard-revenue/?filter=' + filter)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    revenueChart.data.labels = data.labels;
+                    revenueChart.data.datasets[0].data = data.values;
+                    revenueChart.update();
+                });
         });
     });
+});
 </script>
 {% endblock %}

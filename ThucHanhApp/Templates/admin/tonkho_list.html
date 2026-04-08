@@ -7,7 +7,19 @@
     <h1>Danh Sách Tồn Kho</h1>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <a href="{% url 'admin_tonkho_create' %}" class="btn btn-success">Thêm / Nhập Kho</a>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <a href="{% url 'admin_tonkho_create' %}" class="btn btn-success">Thêm / Nhập Kho</a>
+            <form method="post" action="{% url 'admin_tonkho_import_excel' %}" enctype="multipart/form-data"
+                style="display:flex; gap:6px; align-items:center;" id="form-import-excel">
+                {% csrf_token %}
+                <label for="excel_file" class="btn btn-primary"
+                    style="background:#2b6cb0; cursor:pointer; margin:0; padding:6px 14px; display:inline-flex; align-items:center; gap:4px;">
+                    📥 Nhập từ Excel
+                </label>
+                <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" style="display:none;"
+                    onchange="document.getElementById('form-import-excel').submit();">
+            </form>
+        </div>
         <input type="text" class="search-box" placeholder="🔍 Tìm kiếm..."
             style="padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:250px;">
 
@@ -97,7 +109,9 @@
                 <td style="font-weight:700; color:#2b6cb0;">{{ g.de_xuat_nhap }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" style="text-align:center;">Chưa có gợi ý nhập hàng</td></tr>
+            <tr>
+                <td colspan="5" style="text-align:center;">Chưa có gợi ý nhập hàng</td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
