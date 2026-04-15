@@ -6,18 +6,76 @@
 <div class="card">
     <h1>Báo Cáo Doanh Thu</h1>
 
-    <!-- Loc theo nam -->
-    <form method="get" style="margin-bottom: 20px;">
-        <label for="nam">Lọc theo năm:</label>
-        <select name="nam" id="nam" onchange="this.form.submit()">
-            <option value="">Tất cả</option>
-            {% for d in danh_sach_nam %}
-            <option value="{{ d.year }}" {% if nam_hien_tai == d.year|stringformat:"d" %}selected{% endif %}>
-                {{ d.year }}
-            </option>
-            {% endfor %}
-        </select>
-    </form>
+    <!-- Thanh cong cu: Loc va Xuat -->
+    <div
+        style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:15px;">
+        <form method="get" id="filter-form"
+            style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; margin:0;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <label for="loai_loc" style="font-weight:600; font-size:13px; color:#4a5568;">Thời gian</label>
+                <select name="loai_loc" id="loai_loc" onchange="toggleCustomDate(this.value); this.form.submit()"
+                    style="padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px; min-width:150px;">
+                    <option value="tat_ca" {% if loai_loc == 'tat_ca' %}selected{% endif %}>Tất cả thời gian</option>
+                    <option value="7_ngay" {% if loai_loc == '7_ngay' %}selected{% endif %}>7 Ngày qua</option>
+                    <option value="30_ngay" {% if loai_loc == '30_ngay' %}selected{% endif %}>30 Ngày qua</option>
+                    <option value="thang_truoc" {% if loai_loc == 'thang_truoc' %}selected{% endif %}>Tháng trước</option>
+                    <option value="quy_nay" {% if loai_loc == 'quy_nay' %}selected{% endif %}>Quý này</option>
+                    <option value="quy_truoc" {% if loai_loc == 'quy_truoc' %}selected{% endif %}>Quý trước</option>
+                    <option value="6_thang" {% if loai_loc == '6_thang' %}selected{% endif %}>6 Tháng qua</option>
+                    <option value="12_thang" {% if loai_loc == '12_thang' %}selected{% endif %}>12 Tháng qua</option>
+                    <option value="nam_nay" {% if loai_loc == 'nam_nay' %}selected{% endif %}>Năm nay</option>
+                    <option value="nam_truoc" {% if loai_loc == 'nam_truoc' %}selected{% endif %}>Năm trước</option>
+                    <option value="tuy_chon" {% if loai_loc == 'tuy_chon' %}selected{% endif %}>Tùy chọn ngày...</option>
+                </select>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <label for="cua_hang_id" style="font-weight:600; font-size:13px; color:#4a5568;">Cửa hàng</label>
+                <select name="cua_hang_id" id="cua_hang_id" onchange="this.form.submit()"
+                    style="padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px; min-width:180px;">
+                    <option value="">Tất cả cửa hàng</option>
+                    {% for ch in ds_cua_hang %}
+                    <option value="{{ ch.id }}" {% if cua_hang_id == ch.id|stringformat:"d" %}selected{% endif %}>
+                        {{ ch.ten_cua_hang }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="custom-date-container"
+                style="display:{% if loai_loc == 'tuy_chon' %}flex{% else %}none{% endif %}; gap:10px; align-items:flex-end;">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="font-weight:600; font-size:13px; color:#4a5568;">Từ ngày</label>
+                    <input type="date" name="tu_ngay" value="{{ tu_ngay }}"
+                        style="padding:7px 10px; border:1px solid #cbd5e0; border-radius:6px;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="font-weight:600; font-size:13px; color:#4a5568;">Đến ngày</label>
+                    <input type="date" name="den_ngay" value="{{ den_ngay }}"
+                        style="padding:7px 10px; border:1px solid #cbd5e0; border-radius:6px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding:8px 15px;">Áp dụng</button>
+            </div>
+
+            <script>
+                function toggleCustomDate(val) {
+                    var container = document.getElementById('custom-date-container');
+                    if (val === 'tuy_chon') {
+                        container.style.display = 'flex';
+                    } else {
+                        container.style.display = 'none';
+                    }
+                }
+            </script>
+        </form>
+
+        <div style="display:flex; gap:10px;">
+            <a href="{% url 'admin_doanhthu_export_excel' %}?loai_loc={{ loai_loc }}&tu_ngay={{ tu_ngay }}&den_ngay={{ den_ngay }}&cua_hang_id={{ cua_hang_id }}"
+                class="btn btn-success" style="display:flex; align-items:center; gap:5px;">
+                📊 Xuất Excel
+            </a>
+        </div>
+    </div>
 
     <!-- Tong quan -->
     <div style="display:flex; gap:20px; margin-bottom:20px;">
@@ -28,6 +86,18 @@
         <div class="card" style="flex:1; text-align:center; padding:15px;">
             <h3>Số Đơn Hàng</h3>
             <p style="font-size:24px; color:blue; font-weight:bold;">{{ tong_don_hang }}</p>
+        </div>
+    </div>
+
+    <!-- Bieu do -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+        <div class="card" style="padding:15px;">
+            <h3 style="margin-bottom:10px;">📈 Doanh Thu Theo Tháng</h3>
+            <canvas id="chartThang" height="220"></canvas>
+        </div>
+        <div class="card" style="padding:15px;">
+            <h3 style="margin-bottom:10px;">🏪 So Sánh Top Cửa Hàng</h3>
+            <canvas id="chartCuaHang" height="220"></canvas>
         </div>
     </div>
 
@@ -94,4 +164,85 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Bieu do doanh thu theo thang (line + bar)
+        var thangLabels = {{ chart_thang_labels| safe }};
+    var thangValues = {{ chart_thang_values| safe }};
+    var thangSoDon = {{ chart_thang_so_don| safe }};
+
+    new Chart(document.getElementById('chartThang'), {
+        type: 'bar',
+        data: {
+            labels: thangLabels,
+            datasets: [
+                {
+                    label: 'Doanh thu (đ)',
+                    data: thangValues,
+                    backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                    borderColor: '#667eea',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Số đơn',
+                    data: thangSoDon,
+                    type: 'line',
+                    borderColor: '#f56565',
+                    backgroundColor: 'rgba(245,101,101,0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f56565',
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Doanh thu (đ)' } },
+                y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Số đơn' } }
+            }
+        }
+    });
+
+    // Bieu do so sanh cua hang (horizontal bar)
+    var storeLabels = {{ chart_store_labels| safe }};
+    var storeValues = {{ chart_store_values| safe }};
+    var storeSoDon = {{ chart_store_so_don| safe }};
+
+    var storeColors = [
+        'rgba(102,126,234,0.8)', 'rgba(118,75,162,0.8)', 'rgba(240,147,251,0.8)',
+        'rgba(245,87,108,0.8)', 'rgba(79,172,254,0.8)', 'rgba(67,233,123,0.8)',
+        'rgba(251,191,36,0.8)', 'rgba(99,179,237,0.8)', 'rgba(104,211,145,0.8)',
+        'rgba(252,129,129,0.8)'
+    ];
+
+    new Chart(document.getElementById('chartCuaHang'), {
+        type: 'bar',
+        data: {
+            labels: storeLabels,
+            datasets: [{
+                label: 'Doanh thu (đ)',
+                data: storeValues,
+                backgroundColor: storeColors,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            scales: { x: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
+        }
+    });
+});
+</script>
 {% endblock %}

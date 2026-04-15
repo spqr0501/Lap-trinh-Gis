@@ -6,10 +6,18 @@
 <div class="card">
     <h1>Thông Báo Admin</h1>
 
-    <form method="post" action="{% url 'admin_thong_bao_xoa_da_doc' %}" style="margin-bottom:12px;">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger" onclick="return confirm('Xóa tất cả thông báo đã đọc?')">Xóa các thông báo đã đọc</button>
-    </form>
+    <div style="display:flex; gap:10px; margin-bottom:12px;">
+        <form method="post" action="{% url 'admin_thong_bao_doc_tat_ca' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary"
+                onclick="return confirm('Đánh dấu tất cả thông báo là đã đọc?')">✅ Đọc tất cả</button>
+        </form>
+        <form method="post" action="{% url 'admin_thong_bao_xoa_da_doc' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Xóa tất cả thông báo đã đọc?')">🗑️
+                Xóa các thông báo đã đọc</button>
+        </form>
+    </div>
 
     <table>
         <thead>
@@ -30,6 +38,11 @@
                 <td>{% if item.da_doc %}Đã đọc{% else %}<strong>Chưa đọc</strong>{% endif %}</td>
                 <td>
                     <a href="{% url 'admin_thong_bao_doc' item.id %}" class="btn btn-primary">Mở</a>
+                    <form method="post" action="{% url 'admin_thong_bao_xoa' item.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('Xóa thông báo này?')">Xóa</button>
+                    </form>
                 </td>
             </tr>
             {% empty %}

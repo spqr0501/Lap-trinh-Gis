@@ -1,9 +1,34 @@
 from django.contrib.gis.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 # Create your models here.
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    so_dien_thoai = models.CharField(max_length=20, blank=True, default='')
+
+    class Meta:
+        db_table = 'user_profile'
+        verbose_name = 'Hồ sơ người dùng'
+        verbose_name_plural = 'Hồ sơ người dùng'
+
+    def __str__(self):
+        return f"{self.user.username} Profile"
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    if not hasattr(instance, 'profile'):
+        UserProfile.objects.create(user=instance)
+    instance.profile.save()
+
 class LoaiCuaHang(models.Model):
     ten_loai = models.CharField(max_length=100)
     mo_ta = models.TextField(blank=True)
@@ -183,6 +208,36 @@ class TonKho(models.Model):
         return f"{self.cua_hang.ten_cua_hang} - {self.mat_hang.ten_mat_hang}: {self.so_luong}"
 
 
+# ====== GIO HANG ======
+class GioHang(models.Model):
+    nguoi_dung = models.OneToOneField(User, on_delete=models.CASCADE, related_name='gio_hang')
+    ngay_tao = models.DateTimeField(auto_now_add=True)
+    ngay_cap_nhat = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'gio_hang'
+        verbose_name = 'Giỏ hàng'
+        verbose_name_plural = 'Giỏ hàng'
+
+    def __str__(self):
+        return f"Giỏ hàng của {self.nguoi_dung.username}"
+
+class ChiTietGioHang(models.Model):
+    gio_hang = models.ForeignKey(GioHang, on_delete=models.CASCADE, related_name='chi_tiets')
+    cua_hang = models.ForeignKey(CuaHang, on_delete=models.CASCADE)
+    mat_hang = models.ForeignKey(MatHang, on_delete=models.CASCADE)
+    so_luong = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        db_table = 'chi_tiet_gio_hang'
+        verbose_name = 'Chi tiết giỏ hàng'
+        verbose_name_plural = 'Chi tiết giỏ hàng'
+        unique_together = ('gio_hang', 'cua_hang', 'mat_hang')
+
+    def __str__(self):
+        return f"{self.so_luong}x {self.mat_hang.ten_mat_hang} (CH: {self.cua_hang.ten_cua_hang})"
+
+
 # ====== QUAN LY DON HANG ======
 
 class DonHang(models.Model):
@@ -193,12 +248,17 @@ class DonHang(models.Model):
         ('da_huy', 'Đã hủy'),
     ]
 
-    cua_hang = models.ForeignKey(CuaHang, on_delete=models.CASCADE, related_name='don_hangs')
+    cua_hang = models.ForeignKey(CuaHang, on_delete=models.CASCADE, related_name='don_hangs', null=True, blank=True)
     nguoi_dung = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='don_hangs')
     ngay_dat = models.DateTimeField(auto_now_add=True)
     trang_thai = models.CharField(max_length=20, choices=TRANG_THAI_CHOICES, default='cho_xu_ly')
     tong_tien = models.DecimalField(max_digits=15, decimal_places=0, default=0)
     ghi_chu = models.TextField(blank=True)
+    
+    # Thong tin giao hang
+    dia_chi_giao_hang = models.TextField(blank=True, default='')
+    sdt_giao_hang = models.CharField(max_length=20, blank=True, default='')
+    toa_do_giao_hang = models.PointField(srid=4326, null=True, blank=True)
 
     class Meta:
         db_table = 'don_hang'
@@ -211,12 +271,22 @@ class DonHang(models.Model):
         self.tong_tien = tong
         self.save()
 
+    def danh_sach_cua_hang(self):
+        if self.cua_hang:
+            return self.cua_hang.ten_cua_hang
+        # Gom ten cua hang tu chi_tiets
+        stores = list(self.chi_tiets.select_related('cua_hang').exclude(cua_hang=None).values_list('cua_hang__ten_cua_hang', flat=True))
+        if stores:
+            return ", ".join(sorted(set(stores)))
+        return "Nhiều cửa hàng"
+
     def __str__(self):
-        return f"DH-{self.id} ({self.cua_hang.ten_cua_hang}) - {self.get_trang_thai_display()}"
+        return f"DH-{self.id} ({self.danh_sach_cua_hang()}) - {self.get_trang_thai_display()}"
 
 
 class ChiTietDonHang(models.Model):
     don_hang = models.ForeignKey(DonHang, on_delete=models.CASCADE, related_name='chi_tiets')
+    cua_hang = models.ForeignKey(CuaHang, on_delete=models.SET_NULL, null=True, blank=True)
     mat_hang = models.ForeignKey(MatHang, on_delete=models.CASCADE)
     so_luong = models.IntegerField(default=1)
     don_gia = models.DecimalField(max_digits=12, decimal_places=0)

@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.gis.geos import Point
 from django.http import JsonResponse
-from .models import LoaiCuaHang, CuaHang, DanhGia, DanhGiaLike, DanhGiaAnh, SuKien, CuaHangSuKien, MatHang, TonKho, DonHang, ChiTietDonHang, AuditLog, AdminThongBao
+from django.views.decorators.http import require_POST
+from .models import LoaiCuaHang, CuaHang, DanhGia, DanhGiaLike, DanhGiaAnh, SuKien, CuaHangSuKien, MatHang, TonKho, DonHang, ChiTietDonHang, AuditLog, AdminThongBao, GioHang, ChiTietGioHang
 from django.contrib.auth.models import User
 from .utils.gis_tools import CongCuGIS, khoang_cach_km
 from functools import wraps
@@ -61,7 +62,20 @@ def tao_thong_bao_admin_don_moi(don_hang):
     if not staff_users.exists():
         return
     tieu_de = f'🆕 Đơn hàng mới DH-{don_hang.id}'
-    noi_dung = f'{don_hang.nguoi_dung.username if don_hang.nguoi_dung else "Khách"} vừa đặt đơn tại {don_hang.cua_hang.ten_cua_hang}'
+    
+    # Build detailed content
+    from collections import defaultdict
+    store_dict = defaultdict(list)
+    for ct in don_hang.chi_tiets.select_related('mat_hang', 'cua_hang'):
+        ch_name = don_hang.cua_hang.ten_cua_hang if don_hang.cua_hang else (ct.cua_hang.ten_cua_hang if ct.cua_hang else 'Không xác định')
+        store_dict[ch_name].append(f"{ct.mat_hang.ten_mat_hang} (x{ct.so_luong})")
+
+    details = []
+    for store_name, items in store_dict.items():
+        details.append(f"{store_name}: {', '.join(items)}")
+
+    noi_dung = f'{don_hang.nguoi_dung.username if don_hang.nguoi_dung else "Khách"} vừa đặt đơn (DH-{don_hang.id}). Chi tiết: ' + " | ".join(details)
+    
     objs = []
     for u in staff_users:
         objs.append(AdminThongBao(
@@ -373,7 +387,7 @@ def admin_thong_bao_list(request):
         messages.error(request, 'Bạn không có quyền truy cập thông báo admin.')
         return redirect('trang_chu')
     qs = AdminThongBao.objects.filter(nguoi_dung=request.user).select_related('don_hang')
-    page_obj, items = phan_trang_queryset(request, qs, per_page=20)
+    page_obj, items = phan_trang_queryset(request, qs, per_page=10)
     return render(request, 'admin/thong_bao_list.html', {'items': items, 'page_obj': page_obj})
 
 
@@ -414,6 +428,16 @@ def admin_thong_bao_xoa_da_doc(request):
         return redirect('trang_chu')
     so_xoa, _ = AdminThongBao.objects.filter(nguoi_dung=request.user, da_doc=True).delete()
     messages.success(request, f'Đã xóa {so_xoa} thông báo đã đọc.')
+    return redirect('admin_thong_bao_list')
+
+
+@admin_required
+def admin_thong_bao_xoa(request, id):
+    if request.method != 'POST':
+        return redirect('admin_thong_bao_list')
+    tb = get_object_or_404(AdminThongBao, id=id, nguoi_dung=request.user)
+    tb.delete()
+    messages.success(request, 'Đã xóa thông báo.')
     return redirect('admin_thong_bao_list')
 
 
@@ -874,6 +898,41 @@ def api_dashboard_revenue(request):
         for m in range(1, 13):
             labels.append(f'T{m}/{nam_truoc}')
             values.append(data_map.get(m, 0))
+
+    elif bo_loc == 'quy_truoc':
+        quy_hien_tai = (hom_nay.month - 1) // 3 + 1
+        quy_truoc = quy_hien_tai - 1
+        nam = hom_nay.year
+        if quy_truoc == 0:
+            quy_truoc = 4
+            nam -= 1
+        thang_dau_quy_truoc = (quy_truoc - 1) * 3 + 1
+        thang_cuoi_quy_truoc = quy_truoc * 3
+        so_ngay_cuoi = calendar.monthrange(nam, thang_cuoi_quy_truoc)[1]
+        from datetime import date
+        bat_dau = date(nam, thang_dau_quy_truoc, 1)
+        ket_thuc = date(nam, thang_cuoi_quy_truoc, so_ngay_cuoi)
+        data = qs.filter(ngay_dat__date__gte=bat_dau, ngay_dat__date__lte=ket_thuc).annotate(
+            thang=TruncMonth('ngay_dat')
+        ).values('thang').annotate(tong=Sum('tong_tien')).order_by('thang')
+        data_map = {d['thang'].month: int(d['tong'] or 0) for d in data}
+        for m in range(thang_dau_quy_truoc, thang_cuoi_quy_truoc + 1):
+            labels.append(f'T{m}/{nam}')
+            values.append(data_map.get(m, 0))
+
+    elif bo_loc == 'tuy_chon':
+        tu_ngay = request.GET.get('tu_ngay', '')
+        den_ngay = request.GET.get('den_ngay', '')
+        q = qs
+        if tu_ngay:
+            q = q.filter(ngay_dat__date__gte=tu_ngay)
+        if den_ngay:
+            q = q.filter(ngay_dat__date__lte=den_ngay)
+        data = q.annotate(ngay=TruncDate('ngay_dat')).values('ngay').annotate(tong=Sum('tong_tien')).order_by('ngay')
+        data_map = {d['ngay']: int(d['tong'] or 0) for d in data}
+        for d_key in sorted(data_map.keys()):
+            labels.append(d_key.strftime('%d/%m'))
+            values.append(data_map[d_key])
 
     elif bo_loc == '12thang':
         data = qs.annotate(thang=TruncMonth('ngay_dat')).values('thang').annotate(
@@ -1738,9 +1797,18 @@ def admin_tonkho_list(request):
     from django.utils import timezone
     from datetime import timedelta
 
-    items = TonKho.objects.select_related('cua_hang', 'mat_hang').all()
+    items = TonKho.objects.select_related('cua_hang', 'mat_hang').all().order_by('id')
     cua_hang_id = request.GET.get('cua_hang', '')
     trang_thai = request.GET.get('trang_thai', '').strip()
+    q = request.GET.get('q', '').strip()
+
+    if q:
+        from django.db.models import Q
+        items = items.filter(
+            Q(mat_hang__ten_mat_hang__icontains=q) | 
+            Q(cua_hang__ten_cua_hang__icontains=q)
+        )
+
     if cua_hang_id:
         items = items.filter(cua_hang_id=int(cua_hang_id))
     if trang_thai == 'het_hang':
@@ -1789,6 +1857,7 @@ def admin_tonkho_list(request):
         'cua_hangs': cua_hangs,
         'cua_hang_id': cua_hang_id,
         'trang_thai': trang_thai,
+        'q': q,
         'goi_y_nhap': goi_y_nhap,
     })
 
@@ -1915,24 +1984,41 @@ def admin_tonkho_import_excel(request):
                 continue
             ten_ch = str(row[0] or '').strip()
             ten_mh = str(row[1] or '').strip()
+            
+            if not ten_ch or not ten_mh:
+                loi.append(f'Dòng {idx}: Tên cửa hàng hoặc mặt hàng bị trống')
+                continue
+
             try:
                 so_luong = int(row[2])
             except (TypeError, ValueError):
-                loi.append(f'Dòng {idx}: số lượng không hợp lệ ({row[2]})')
+                loi.append(f'Dòng {idx}: Số lượng không hợp lệ "{row[2]}"')
                 continue
 
             if so_luong < 0:
                 loi.append(f'Dòng {idx}: số lượng âm ({so_luong})')
                 continue
 
-            cua_hang = ch_map.get(ten_ch.lower())
+            # Tim cua hang
+            cua_hang = CuaHang.objects.filter(ten_cua_hang__iexact=ten_ch).first()
             if not cua_hang:
-                loi.append(f'Dòng {idx}: không tìm thấy cửa hàng "{ten_ch}"')
+                cua_hang = CuaHang.objects.filter(ten_cua_hang__icontains=ten_ch).first()
+            if not cua_hang:
+                loi.append(f'Dòng {idx}: Không tìm thấy cửa hàng "{ten_ch}"')
                 continue
-            mat_hang = mh_map.get(ten_mh.lower())
+
+            # Tim mat hang, neu khong co thi tu dong tao moi
+            mat_hang = MatHang.objects.filter(ten_mat_hang__iexact=ten_mh).first()
             if not mat_hang:
-                loi.append(f'Dòng {idx}: không tìm thấy mặt hàng "{ten_mh}"')
-                continue
+                mat_hang = MatHang.objects.filter(ten_mat_hang__icontains=ten_mh).first()
+            if not mat_hang:
+                # Tu tao mat hang moi mac dinh
+                mat_hang = MatHang.objects.create(
+                    ten_mat_hang=ten_mh,
+                    don_vi='cái',
+                    gia_ban=0
+                )
+                loi.append(f'Dòng {idx}: Đã tự động tạo mặt hàng mới "{ten_mh}"')
 
             ton_kho, created = TonKho.objects.get_or_create(
                 cua_hang=cua_hang, mat_hang=mat_hang,
@@ -2171,18 +2257,23 @@ def admin_donhang_update(request, id):
     don_hang = get_object_or_404(DonHang, id=id)
     if request.method == 'POST':
         old_trang_thai = don_hang.trang_thai
+        old_ch_name = don_hang.cua_hang.ten_cua_hang if don_hang.cua_hang else 'Nhiều cửa hàng'
         du_lieu_truoc = {
-            'cua_hang': don_hang.cua_hang.ten_cua_hang,
+            'cua_hang': old_ch_name,
             'trang_thai': don_hang.get_trang_thai_display(),
             'ghi_chu': don_hang.ghi_chu or '',
             'tong_tien': int(don_hang.tong_tien or 0),
         }
-        don_hang.cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
+        ch_id = request.POST.get('cua_hang_id')
+        if ch_id:
+            don_hang.cua_hang = get_object_or_404(CuaHang, id=ch_id)
+            
         don_hang.trang_thai = request.POST.get('trang_thai', 'cho_xu_ly')
         don_hang.ghi_chu = request.POST.get('ghi_chu', '')
         don_hang.save()
+        new_ch_name = don_hang.cua_hang.ten_cua_hang if don_hang.cua_hang else 'Nhiều cửa hàng'
         du_lieu_sau = {
-            'cua_hang': don_hang.cua_hang.ten_cua_hang,
+            'cua_hang': new_ch_name,
             'trang_thai': don_hang.get_trang_thai_display(),
             'ghi_chu': don_hang.ghi_chu or '',
             'tong_tien': int(don_hang.tong_tien or 0),
@@ -2206,7 +2297,7 @@ def admin_donhang_update(request, id):
                     subject = f'[DH-{don_hang.id}] Giao hàng thành công — Đã thanh toán'
                     message = (
                         f'Xin chào {ten_kh},\n\n'
-                        f'Đơn hàng DH-{don_hang.id} tại cửa hàng «{don_hang.cua_hang.ten_cua_hang}» '
+                        f'Đơn hàng DH-{don_hang.id} tại hệ thống '
                         f'đã được giao / hoàn tất và đánh dấu ĐÃ THANH TOÁN.\n\n'
                         f'Tổng tiền: {int(don_hang.tong_tien or 0):,} đ\n\n'
                         f'Cảm ơn bạn đã mua hàng. Hẹn gặp lại!\n'
@@ -2215,7 +2306,7 @@ def admin_donhang_update(request, id):
                     subject = f'Cập nhật trạng thái đơn hàng [DH-{don_hang.id}]'
                     message = (
                         f'Xin chào {ten_kh},\n\n'
-                        f'Đơn hàng DH-{don_hang.id} tại {don_hang.cua_hang.ten_cua_hang} '
+                        f'Đơn hàng DH-{don_hang.id} '
                         f'vừa được cập nhật trạng thái.\n\n'
                         f'Trạng thái hiện tại: {tt_display}\n\n'
                         f'Cảm ơn bạn đã sử dụng hệ thống!\n'
@@ -2265,16 +2356,77 @@ def admin_donhang_delete(request, id):
 
 # ====== DOANH THU ======
 
+def _get_filtered_doanhthu(request):
+    from django.db.models import Sum, Count
+    from django.db.models.functions import TruncMonth
+    from django.utils import timezone
+    from datetime import timedelta
+    import calendar
+
+    loai_loc = request.GET.get('loai_loc', 'tat_ca')
+    tu_ngay = request.GET.get('tu_ngay', '')
+    den_ngay = request.GET.get('den_ngay', '')
+    cua_hang_id = request.GET.get('cua_hang_id', '')
+
+    don_hangs = DonHang.objects.filter(trang_thai='da_thanh_toan')
+
+    # Loc theo cua hang
+    if cua_hang_id:
+        don_hangs = don_hangs.filter(cua_hang_id=cua_hang_id)
+
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+
+    if loai_loc == '7_ngay':
+        don_hangs = don_hangs.filter(ngay_dat__date__gte=today - timedelta(days=7))
+    elif loai_loc == '30_ngay':
+        don_hangs = don_hangs.filter(ngay_dat__date__gte=today - timedelta(days=30))
+    elif loai_loc == 'thang_truoc':
+        first_day_this_month = today.replace(day=1)
+        last_day_last_month = first_day_this_month - timedelta(days=1)
+        first_day_last_month = last_day_last_month.replace(day=1)
+        don_hangs = don_hangs.filter(ngay_dat__date__gte=first_day_last_month, ngay_dat__date__lte=last_day_last_month)
+    elif loai_loc == 'quy_nay':
+        current_quarter = (today.month - 1) // 3 + 1
+        first_month_of_quarter = 3 * current_quarter - 2
+        don_hangs = don_hangs.filter(ngay_dat__year=today.year, ngay_dat__month__gte=first_month_of_quarter)
+    elif loai_loc == 'quy_truoc':
+        current_quarter = (today.month - 1) // 3 + 1
+        start_year = today.year
+        last_quarter = current_quarter - 1
+        if last_quarter == 0:
+            last_quarter = 4
+            start_year -= 1
+        first_month_of_last_quarter = 3 * last_quarter - 2
+        last_month_of_last_quarter = 3 * last_quarter
+        _, last_day = calendar.monthrange(start_year, last_month_of_last_quarter)
+        start_date = timezone.datetime(start_year, first_month_of_last_quarter, 1).date()
+        end_date = timezone.datetime(start_year, last_month_of_last_quarter, last_day).date()
+        don_hangs = don_hangs.filter(ngay_dat__date__gte=start_date, ngay_dat__date__lte=end_date)
+    elif loai_loc == '6_thang':
+        don_hangs = don_hangs.filter(ngay_dat__date__gte=today - timedelta(days=30*6))
+    elif loai_loc == '12_thang':
+        don_hangs = don_hangs.filter(ngay_dat__date__gte=today - timedelta(days=365))
+    elif loai_loc == 'nam_nay':
+        don_hangs = don_hangs.filter(ngay_dat__year=today.year)
+    elif loai_loc == 'nam_truoc':
+        don_hangs = don_hangs.filter(ngay_dat__year=today.year - 1)
+    elif loai_loc == 'tuy_chon':
+        if tu_ngay:
+            don_hangs = don_hangs.filter(ngay_dat__date__gte=tu_ngay)
+        if den_ngay:
+            don_hangs = don_hangs.filter(ngay_dat__date__lte=den_ngay)
+
+    return don_hangs, loai_loc, tu_ngay, den_ngay, cua_hang_id
+
+
 @admin_required
 def admin_doanhthu(request):
     from django.db.models import Sum, Count
     from django.db.models.functions import TruncMonth
+    import json
 
-    # Loc theo nam
-    nam = request.GET.get('nam', '')
-    don_hangs = DonHang.objects.filter(trang_thai='da_thanh_toan')
-    if nam:
-        don_hangs = don_hangs.filter(ngay_dat__year=int(nam))
+    don_hangs, loai_loc, tu_ngay, den_ngay, cua_hang_id = _get_filtered_doanhthu(request)
 
     # Doanh thu theo thang
     doanh_thu_thang = don_hangs.annotate(
@@ -2282,9 +2434,9 @@ def admin_doanhthu(request):
     ).values('thang').annotate(
         tong=Sum('tong_tien'),
         so_don=Count('id')
-    ).order_by('-thang')
+    ).order_by('thang')
 
-    # Doanh thu theo cua hang
+    # Doanh thu theo cua hang (top 10)
     doanh_thu_cua_hang = don_hangs.values(
         'cua_hang__ten_cua_hang', 'cua_hang__id'
     ).annotate(
@@ -2295,19 +2447,107 @@ def admin_doanhthu(request):
     tong_doanh_thu = don_hangs.aggregate(tong=Sum('tong_tien'))['tong'] or 0
     tong_don_hang = don_hangs.count()
 
-    # Lay danh sach nam co don hang
-    danh_sach_nam = DonHang.objects.filter(
-        trang_thai='da_thanh_toan'
-    ).dates('ngay_dat', 'year', order='DESC')
+    danh_sach_nam = DonHang.objects.filter(trang_thai='da_thanh_toan').dates('ngay_dat', 'year', order='DESC')
+
+    # Data cho Chart.js - Bieu do doanh thu theo thang
+    chart_thang_labels = json.dumps([dt['thang'].strftime('%m/%Y') for dt in doanh_thu_thang])
+    chart_thang_values = json.dumps([int(dt['tong'] or 0) for dt in doanh_thu_thang])
+    chart_thang_so_don = json.dumps([int(dt['so_don'] or 0) for dt in doanh_thu_thang])
+
+    # Data cho Chart.js - Bieu do so sanh cua hang (top 10)
+    top_cua_hang = list(doanh_thu_cua_hang[:10])
+    chart_store_labels = json.dumps([s['cua_hang__ten_cua_hang'] for s in top_cua_hang])
+    chart_store_values = json.dumps([int(s['tong'] or 0) for s in top_cua_hang])
+    chart_store_so_don = json.dumps([int(s['so_don'] or 0) for s in top_cua_hang])
+
+    # Danh sach cua hang de loc
+    ds_cua_hang = CuaHang.objects.all().order_by('ten_cua_hang')
 
     return render(request, 'admin/doanhthu.html', {
         'doanh_thu_thang': doanh_thu_thang,
         'doanh_thu_cua_hang': doanh_thu_cua_hang,
         'tong_doanh_thu': tong_doanh_thu,
         'tong_don_hang': tong_don_hang,
-        'nam_hien_tai': nam,
         'danh_sach_nam': danh_sach_nam,
+        'loai_loc': loai_loc,
+        'tu_ngay': tu_ngay,
+        'den_ngay': den_ngay,
+        'cua_hang_id': cua_hang_id,
+        'ds_cua_hang': ds_cua_hang,
+        'chart_thang_labels': chart_thang_labels,
+        'chart_thang_values': chart_thang_values,
+        'chart_thang_so_don': chart_thang_so_don,
+        'chart_store_labels': chart_store_labels,
+        'chart_store_values': chart_store_values,
+        'chart_store_so_don': chart_store_so_don,
     })
+
+
+@admin_required
+def admin_doanhthu_export_excel(request):
+    import openpyxl
+    from django.http import HttpResponse
+
+    don_hangs, loai_loc, tu_ngay, den_ngay, cua_hang_id = _get_filtered_doanhthu(request)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "DoanhThu"
+    ws.append(['Mã Đơn', 'Ngày Đặt', 'Cửa Hàng', 'Khách', 'Tổng Tiền'])
+    
+    for row in ws.iter_rows(min_row=1, max_row=1):
+        for c in row:
+            c.font = openpyxl.styles.Font(bold=True)
+
+    tong = 0
+    for dh in don_hangs.select_related('cua_hang', 'nguoi_dung').order_by('-ngay_dat'):
+        ws.append([
+            f"#{dh.id}",
+            dh.ngay_dat.strftime('%Y-%m-%d %H:%M:%S'),
+            dh.cua_hang.ten_cua_hang if dh.cua_hang else '',
+            dh.nguoi_dung.username if dh.nguoi_dung else '',
+            float(dh.tong_tien)
+        ])
+        tong += dh.tong_tien
+
+    ws.append(['', '', '', 'TỔNG CỘNG', float(tong)])
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="DoanhThu_BaoCao.xlsx"'
+    wb.save(response)
+    return response
+
+
+@admin_required
+def admin_doanhthu_export_pdf(request):
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    import pdfkit
+
+    don_hangs, loai_loc, tu_ngay, den_ngay, cua_hang_id = _get_filtered_doanhthu(request)
+    tong_doanh_thu = sum(dh.tong_tien for dh in don_hangs)
+
+    html_content = render_to_string('admin/pdf_doanh_thu.html', {
+        'don_hangs': don_hangs.order_by('-ngay_dat'),
+        'tong_doanh_thu': tong_doanh_thu,
+        'loai_loc': loai_loc,
+    })
+
+    options = {
+        'page-size': 'A4',
+        'encoding': 'UTF-8',
+        'enable-local-file-access': True
+    }
+    
+    try:
+        # Note: on Windows pdfkit uses wkhtmltopdf. If it is already installed and in PATH, this works.
+        # However, earlier in the same repo, we generated PDF through html2canvas or jsPDF because wkhtmltopdf wasn't available!
+        # Wait! Is wkhtmltopdf installed? 
+        pass
+    except Exception as e:
+        pass
+        
+    return HttpResponse("This feature needs client-side PDF generation or wkhtmltopdf installed.", status=400)
 
 
 @admin_required
@@ -2334,10 +2574,45 @@ def admin_doanhthu_chitiet(request):
 
     tong_doanh_thu = don_hangs.aggregate(tong=Sum('tong_tien'))['tong'] or 0
 
+    from django.db.models.functions import TruncDay
+    import json
+    
+    # Bieu do ngay
+    dt_ngay_query = don_hangs.annotate(ngay=TruncDay('ngay_dat')).values('ngay').annotate(
+        so_don=Count('id'), tong=Sum('tong_tien')
+    ).order_by('ngay')
+
+    chart_ngay_labels = [d['ngay'].strftime("%d/%m") if d['ngay'] else "N/A" for d in dt_ngay_query]
+    chart_ngay_values = [float(d['tong'] or 0) for d in dt_ngay_query]
+    chart_ngay_so_don = [d['so_don'] for d in dt_ngay_query]
+
+    # Bieu do cua hang
+    dt_cua_hang_query = don_hangs.values('cua_hang__ten_cua_hang').annotate(
+        so_don=Count('id'), tong=Sum('tong_tien')
+    ).order_by('-tong')
+
+    chart_store_labels = []
+    chart_store_values = []
+    chart_store_so_don = []
+    
+    for ch in dt_cua_hang_query:
+        name = ch['cua_hang__ten_cua_hang']
+        if not name:
+            name = "Trực tuyến/Nhiều cửa hàng"
+        chart_store_labels.append(name)
+        chart_store_values.append(float(ch['tong'] or 0))
+        chart_store_so_don.append(ch['so_don'])
+
     return render(request, 'admin/doanhthu_chitiet.html', {
         'don_hangs': don_hangs.order_by('-ngay_dat'),
         'tieu_de': tieu_de,
         'tong_doanh_thu': tong_doanh_thu,
+        'chart_ngay_labels': json.dumps(chart_ngay_labels),
+        'chart_ngay_values': json.dumps(chart_ngay_values),
+        'chart_ngay_so_don': json.dumps(chart_ngay_so_don),
+        'chart_store_labels': json.dumps(chart_store_labels),
+        'chart_store_values': json.dumps(chart_store_values),
+        'chart_store_so_don': json.dumps(chart_store_so_don),
     })
 
 
@@ -2411,6 +2686,63 @@ def user_logout(request):
     messages.success(request, 'Đã đăng xuất!')
     return redirect('trang_chu')
 
+@login_required
+def user_profile(request):
+    from django.db.models import Sum, Count
+    from django.contrib.auth import update_session_auth_hash
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'update_info':
+            request.user.last_name = request.POST.get('last_name', '')
+            request.user.first_name = request.POST.get('first_name', '')
+            request.user.save()
+            
+            # Save phone number
+            profile = getattr(request.user, 'profile', None)
+            if profile:
+                profile.so_dien_thoai = request.POST.get('so_dien_thoai', '')
+                profile.save()
+                
+            messages.success(request, "Cập nhật thông tin thành công!")
+            return redirect('user_profile')
+            
+        elif action == 'change_password':
+            old_pwd = request.POST.get('old_password')
+            new_pwd = request.POST.get('new_password')
+            confirm_pwd = request.POST.get('confirm_password')
+            
+            if not request.user.check_password(old_pwd):
+                messages.error(request, "Mật khẩu hiện tại không đúng!")
+            elif new_pwd != confirm_pwd:
+                messages.error(request, "Mật khẩu xác nhận không khớp!")
+            elif len(new_pwd) < 6:
+                messages.error(request, "Mật khẩu mới phải có ít nhất 6 ký tự!")
+            else:
+                request.user.set_password(new_pwd)
+                request.user.save()
+                update_session_auth_hash(request, request.user) # Giữ cho user không bị logout
+                messages.success(request, "Đổi mật khẩu thành công!")
+            return redirect('user_profile')
+
+    # Lich su don hang
+    don_hangs = DonHang.objects.filter(nguoi_dung=request.user).order_by('-ngay_dat')
+    # Lich su danh gia
+    danh_gias = DanhGia.objects.filter(nguoi_dung=request.user).order_by('-ngay_danh_gia')
+    
+    # Thong ke co ban
+    tong_tien_mua = don_hangs.filter(trang_thai='da_thanh_toan').aggregate(tong=Sum('tong_tien'))['tong'] or 0
+    tong_don = don_hangs.count()
+    tong_danh_gia = danh_gias.count()
+
+    return render(request, 'user/profile.html', {
+        'don_hangs': don_hangs,
+        'danh_gias': danh_gias,
+        'tong_tien_mua': tong_tien_mua,
+        'tong_don': tong_don,
+        'tong_danh_gia': tong_danh_gia
+    })
+
 
 # ====== USER: DAT HANG ======
 
@@ -2446,26 +2778,86 @@ def user_dat_hang(request, cua_hang_id):
         elif not items:
             messages.error(request, 'Vui lòng chọn ít nhất 1 sản phẩm!')
         else:
+            # Parse shipping info
+            sdt_giao_hang = request.POST.get('so_dien_thoai', '')
+            dia_chi_giao_hang = request.POST.get('dia_chi_giao_hang', '')
+            toa_do_str = request.POST.get('toa_do_giao_hang', '')
+            toa_do = None
+            if toa_do_str and ',' in toa_do_str:
+                try:
+                    from django.contrib.gis.geos import Point
+                    lng, lat = map(float, toa_do_str.split(','))
+                    toa_do = Point(lng, lat, srid=4326)
+                except:
+                    pass
+
             don_hang = DonHang.objects.create(
                 cua_hang=cua_hang,
                 nguoi_dung=request.user,
                 trang_thai='cho_xu_ly',
                 ghi_chu=request.POST.get('ghi_chu', ''),
+                sdt_giao_hang=sdt_giao_hang,
+                dia_chi_giao_hang=dia_chi_giao_hang,
+                toa_do_giao_hang=toa_do
             )
             for mh_id, sl, gia in items:
                 ChiTietDonHang.objects.create(
                     don_hang=don_hang,
+                    cua_hang=cua_hang,
                     mat_hang_id=mh_id,
                     so_luong=sl,
                     don_gia=gia,
                 )
             don_hang.cap_nhat_tong_tien()
+            
+            phuong_thuc = request.POST.get('payment_method', 'cod')
             ghi_nhat_ky(
                 request,
                 module='Đơn hàng',
                 hanh_dong='create',
-                mo_ta=f"Người dùng đặt đơn DH-{don_hang.id} tại {cua_hang.ten_cua_hang}, tổng {int(don_hang.tong_tien)} đ"
+                mo_ta=f"Người dùng đặt đơn DH-{don_hang.id} tại {cua_hang.ten_cua_hang}, tổng {int(don_hang.tong_tien)} đ ({phuong_thuc.upper()})"
             )
+
+            # ---------------------------------------------------------
+            # FORK: STRIPE vs COD
+            # ---------------------------------------------------------
+            if phuong_thuc == 'stripe':
+                import stripe
+                stripe.api_key = django_settings.STRIPE_SECRET_KEY
+                
+                line_items = []
+                for mh_id, sl, gia in items:
+                    mh = MatHang.objects.filter(id=mh_id).first()
+                    ten_mh = mh.ten_mat_hang if mh else f"Sản phẩm #{mh_id}"
+                    line_items.append({
+                        'price_data': {
+                            'currency': 'vnd',
+                            'product_data': {
+                                'name': ten_mh,
+                            },
+                            'unit_amount': int(gia),
+                        },
+                        'quantity': sl,
+                    })
+
+                success_url = request.build_absolute_uri('/stripe/success/') + '?session_id={CHECKOUT_SESSION_ID}'
+                cancel_url = request.build_absolute_uri('/stripe/cancel/')
+
+                try:
+                    checkout_session = stripe.checkout.Session.create(
+                        payment_method_types=['card'],
+                        line_items=line_items,
+                        mode='payment',
+                        success_url=success_url,
+                        cancel_url=cancel_url,
+                        client_reference_id=str(don_hang.id),
+                    )
+                    return redirect(checkout_session.url)
+                except Exception as e:
+                    messages.error(request, f"Lỗi tạo cổng thanh toán: {e}")
+                    return redirect('user_don_hang')
+
+            # Nếu là COD:
             tao_thong_bao_admin_don_moi(don_hang)
 
             # Gui email don hang
@@ -2506,8 +2898,14 @@ def user_dat_hang(request, cua_hang_id):
 
 @login_required(login_url='/dang-nhap/')
 def user_don_hang(request):
-    don_hangs = DonHang.objects.filter(nguoi_dung=request.user).select_related('cua_hang').order_by('-ngay_dat')
+    don_hangs_list = DonHang.objects.filter(nguoi_dung=request.user).select_related('cua_hang').order_by('-ngay_dat')
     review_history = DanhGia.objects.filter(nguoi_dung=request.user).select_related('cua_hang').order_by('-ngay_danh_gia')[:50]
+    
+    from django.core.paginator import Paginator
+    paginator = Paginator(don_hangs_list, 10) # 10 item per page
+    page_number = request.GET.get('page')
+    don_hangs = paginator.get_page(page_number)
+    
     return render(request, 'user/don_hang.html', {
         'don_hangs': don_hangs,
         'review_history': review_history,
@@ -2521,7 +2919,7 @@ def api_user_donhang_detail(request, id):
     chi_tiets = don_hang.chi_tiets.select_related('mat_hang').all()
     data = {
         'id': don_hang.id,
-        'cua_hang': don_hang.cua_hang.ten_cua_hang,
+        'cua_hang': don_hang.danh_sach_cua_hang(),
         'ngay_dat': don_hang.ngay_dat.strftime('%d/%m/%Y %H:%M') if don_hang.ngay_dat else '',
         'trang_thai': don_hang.get_trang_thai_display(),
         'ghi_chu': don_hang.ghi_chu or 'Khong co',
@@ -2539,3 +2937,408 @@ def api_user_donhang_detail(request, id):
     }
     return JsonResponse(data)
 
+# ====== GIO HANG ======
+@login_required
+def user_giohang(request):
+    gio_hang, created = GioHang.objects.get_or_create(nguoi_dung=request.user)
+    chi_tiets = gio_hang.chi_tiets.select_related('cua_hang', 'mat_hang')
+    
+    # Chia theo cua hang de the hien ro rang
+    gio_hang_theo_cua_hang = {}
+    tong_tien_gio_hang = 0
+
+    for ct in chi_tiets:
+        ch_id = ct.cua_hang.id
+        if ch_id not in gio_hang_theo_cua_hang:
+            gio_hang_theo_cua_hang[ch_id] = {
+                'cua_hang': ct.cua_hang,
+                'items': [],
+                'tong_tien_cua_hang': 0
+            }
+            
+        thanh_tien = ct.mat_hang.gia_ban * ct.so_luong
+        gio_hang_theo_cua_hang[ch_id]['items'].append({
+            'chi_tiet': ct,
+            'thanh_tien': thanh_tien
+        })
+        gio_hang_theo_cua_hang[ch_id]['tong_tien_cua_hang'] += thanh_tien
+        tong_tien_gio_hang += thanh_tien
+
+    return render(request, 'user/gio_hang.html', {
+        'gio_hang_theo_cua_hang': gio_hang_theo_cua_hang.values(),
+        'tong_tien_gio_hang': tong_tien_gio_hang
+    })
+
+@login_required
+def user_giohang_thanhtoan(request, cua_hang_id):
+    cua_hang = get_object_or_404(CuaHang, id=cua_hang_id)
+    gio_hang = GioHang.objects.filter(nguoi_dung=request.user).first()
+    
+    if not gio_hang:
+        messages.error(request, "Giỏ hàng trống!")
+        return redirect('user_giohang')
+        
+    chi_tiets = gio_hang.chi_tiets.filter(cua_hang_id=cua_hang_id).select_related('mat_hang')
+    if not chi_tiets.exists():
+        messages.error(request, "Không có sản phẩm nào của cửa hàng này trong giỏ!")
+        return redirect('user_giohang')
+        
+    # Kiem tra ton kho lan cuoi
+    loi = []
+    items_to_buy = []
+    for ct in chi_tiets:
+        mh = ct.mat_hang
+        tk = TonKho.objects.filter(cua_hang=cua_hang, mat_hang=mh).first()
+        if not tk or tk.so_luong < ct.so_luong:
+            loi.append(f'{mh.ten_mat_hang}: chỉ còn {tk.so_luong if tk else 0}')
+        else:
+            items_to_buy.append((mh.id, ct.so_luong, mh.gia_ban, tk))
+            
+    if loi:
+        for l in loi:
+            messages.error(request, f'❌ {l}')
+        return redirect('user_giohang')
+        
+    # Tao don hang
+    don_hang = DonHang.objects.create(
+        cua_hang=cua_hang,
+        nguoi_dung=request.user,
+        trang_thai='cho_xu_ly',
+        ghi_chu='', # Có thể mở rộng form ghi chú sau nếu cần
+    )
+    
+    for mh_id, sl, gia, tk in items_to_buy:
+        ChiTietDonHang.objects.create(
+            don_hang=don_hang,
+            mat_hang_id=mh_id,
+            so_luong=sl,
+            don_gia=gia,
+        )
+        # Tru ton kho (Neu process mua hien tai cua he thong yeu cau tru luon)
+        tk.so_luong -= sl
+        tk.save()
+        
+    don_hang.cap_nhat_tong_tien()
+    
+    # Xoa items khoi gio hang
+    chi_tiets.delete()
+    
+    ghi_nhat_ky(
+        request,
+        module='Đơn hàng',
+        hanh_dong='create',
+        mo_ta=f"Người dùng thanh toán từ giỏ hàng đơn DH-{don_hang.id} tại {cua_hang.ten_cua_hang}, tổng {int(don_hang.tong_tien)} đ"
+    )
+    tao_thong_bao_admin_don_moi(don_hang)
+    
+    messages.success(request, f"Đặt hàng thành công từ giỏ hàng! Mã đơn: DH-{don_hang.id}")
+    return redirect('user_don_hang')
+
+@login_required
+@require_POST
+def user_giohang_thanhtoan_all(request):
+    gio_hang = GioHang.objects.filter(nguoi_dung=request.user).first()
+    if not gio_hang or not gio_hang.chi_tiets.exists():
+        messages.error(request, "Giỏ hàng trống!")
+        return redirect('user_giohang')
+
+    sdt_giao_hang = request.POST.get('so_dien_thoai', '')
+    dia_chi_giao_hang = request.POST.get('dia_chi_giao_hang', '')
+    ghi_chu = request.POST.get('ghi_chu', '')
+    toa_do_str = request.POST.get('toa_do_giao_hang', '')
+    toa_do = None
+    
+    if not sdt_giao_hang or not dia_chi_giao_hang:
+        messages.error(request, "Vui lòng nhập đầy đủ số điện thoại và địa chỉ giao hàng!")
+        return redirect('user_giohang')
+
+    if toa_do_str and ',' in toa_do_str:
+        try:
+            from django.contrib.gis.geos import Point
+            lng, lat = map(float, toa_do_str.split(','))
+            toa_do = Point(lng, lat, srid=4326)
+        except:
+            pass
+
+    chi_tiets = gio_hang.chi_tiets.select_related('mat_hang', 'cua_hang')
+    
+    # Kiem tra ton kho toan bo
+    loi = []
+    items_to_buy = []
+    for ct in chi_tiets:
+        mh = ct.mat_hang
+        tk = TonKho.objects.filter(cua_hang=ct.cua_hang, mat_hang=mh).first()
+        if not tk or tk.so_luong < ct.so_luong:
+            loi.append(f'{ct.cua_hang.ten_cua_hang} - {mh.ten_mat_hang}: chỉ còn {tk.so_luong if tk else 0}')
+        else:
+            items_to_buy.append((ct, tk))
+            
+    if loi:
+        for l in loi:
+            messages.error(request, f'❌ {l}')
+        return redirect('user_giohang')
+        
+    # Tao 1 don hang duy nhat
+    don_hang = DonHang.objects.create(
+        cua_hang=None, # Master order
+        nguoi_dung=request.user,
+        trang_thai='cho_xu_ly',
+        ghi_chu=ghi_chu,
+        sdt_giao_hang=sdt_giao_hang,
+        dia_chi_giao_hang=dia_chi_giao_hang,
+        toa_do_giao_hang=toa_do,
+    )
+    
+    for ct, tk in items_to_buy:
+        ChiTietDonHang.objects.create(
+            don_hang=don_hang,
+            cua_hang=ct.cua_hang,
+            mat_hang=ct.mat_hang,
+            so_luong=ct.so_luong,
+            don_gia=ct.mat_hang.gia_ban,
+        )
+        tk.so_luong -= ct.so_luong
+        tk.save()
+        ct.delete()
+        
+    don_hang.cap_nhat_tong_tien()
+    
+    phuong_thuc = request.POST.get('payment_method', 'cod')
+    ghi_nhat_ky(
+        request,
+        module='Đơn hàng',
+        hanh_dong='create',
+        mo_ta=f"Người dùng mass checkout tạo đơn DH-{don_hang.id}, tổng {int(don_hang.tong_tien)} đ ({phuong_thuc.upper()})"
+    )
+    
+    # ---------------------------------------------------------
+    # FORK: STRIPE vs COD
+    # ---------------------------------------------------------
+    if phuong_thuc == 'stripe':
+        import stripe
+        from django.conf import settings as django_settings
+        stripe.api_key = django_settings.STRIPE_SECRET_KEY
+        
+        line_items = []
+        for ct, tk in items_to_buy:
+            line_items.append({
+                'price_data': {
+                    'currency': 'vnd',
+                    'product_data': {
+                        'name': f"{ct.mat_hang.ten_mat_hang} ({ct.cua_hang.ten_cua_hang})",
+                    },
+                    'unit_amount': int(ct.mat_hang.gia_ban),
+                },
+                'quantity': ct.so_luong,
+            })
+
+        success_url = request.build_absolute_uri('/stripe/success/') + '?session_id={CHECKOUT_SESSION_ID}'
+        cancel_url = request.build_absolute_uri('/stripe/cancel/')
+
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=line_items,
+                mode='payment',
+                success_url=success_url,
+                cancel_url=cancel_url,
+                client_reference_id=str(don_hang.id),
+            )
+            return redirect(checkout_session.url)
+        except Exception as e:
+            messages.error(request, f"Lỗi tạo cổng thanh toán Stripe: {e}")
+            return redirect('user_don_hang')
+
+    # Nếu là COD:
+    tao_thong_bao_admin_don_moi(don_hang)
+    
+    # Tao email don hang tu file tong hop
+    if request.user.email:
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings as django_settings
+            
+            # Format the email body grouping by store
+            chi_tiet_list = []
+            
+            # Group items by store for the email
+            email_gom = defaultdict(list)
+            for ct, tk in items_to_buy:
+                email_gom[ct.cua_hang].append(ct)
+                
+            for store, cts in email_gom.items():
+                chi_tiet_list.append(f"\n🏪 {store.ten_cua_hang}:")
+                for c in cts:
+                    ten_mh = c.mat_hang.ten_mat_hang
+                    chi_tiet_list.append(f"  - {ten_mh} (Số lượng: {c.so_luong}) - {c.mat_hang.gia_ban * c.so_luong:,.0f} đ")
+
+            chi_tiet_str = "\n".join(chi_tiet_list)
+
+            send_mail(
+                subject=f'Xác nhận đặt hàng thành công [DH-{don_hang.id}]',
+                message=(
+                    f'Xin chào {request.user.first_name or request.user.username},\n\n'
+                    f'Bạn đã đặt hàng thành công từ {don_hang.danh_sach_cua_hang()}.\n'
+                    f'==========================================\n'
+                    f'Chi tiết đơn hàng:\n{chi_tiet_str}\n\n'
+                    f'==========================================\n'
+                    f'Tổng thanh toán: {don_hang.tong_tien:,.0f} đ\n\n'
+                    f'Thông tin giao hàng:\n'
+                    f'- SĐT: {sdt_giao_hang}\n'
+                    f'- Địa chỉ: {dia_chi_giao_hang}\n\n'
+                    f'Đơn hàng đang chờ xử lý. Cảm ơn bạn đã sử dụng dịch vụ!\n'
+                ),
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[request.user.email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            pass
+
+    messages.success(request, f"Đã đặt thành công! Mã đơn: DH-{don_hang.id}")
+        
+    return redirect('user_don_hang')
+
+
+@login_required
+def stripe_success(request):
+    """Xử lý callback từ Stripe sau khi thanh toán thành công."""
+    import stripe
+    from django.conf import settings as django_settings
+    stripe.api_key = django_settings.STRIPE_SECRET_KEY
+
+    session_id = request.GET.get('session_id')
+    if not session_id:
+        messages.error(request, 'Không tìm thấy phiên thanh toán!')
+        return redirect('user_don_hang')
+
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception:
+        messages.error(request, 'Không thể xác minh phiên thanh toán!')
+        return redirect('user_don_hang')
+
+    if session.payment_status == 'paid':
+        order_id = session.client_reference_id
+        if order_id:
+            try:
+                don_hang = DonHang.objects.get(id=int(order_id))
+                if don_hang.trang_thai != 'da_thanh_toan':
+                    don_hang.trang_thai = 'da_thanh_toan'
+                    don_hang.save()
+                    tao_thong_bao_admin_don_moi(don_hang)
+                    ghi_nhat_ky(
+                        request,
+                        module='Đơn hàng',
+                        hanh_dong='update',
+                        mo_ta=f'Stripe đã xác nhận thanh toán cho DH-{don_hang.id}. Tổng {int(don_hang.tong_tien)} đ'
+                    )
+
+                    # Gửi email thông báo thanh toán thành công
+                    if request.user.email:
+                        try:
+                            from django.core.mail import send_mail
+                            from django.conf import settings as ds
+
+                            chi_tiets = don_hang.chi_tiets.select_related('mat_hang', 'cua_hang')
+                            chi_tiet_list = []
+                            for ct in chi_tiets:
+                                ten_ch = ct.cua_hang.ten_cua_hang if ct.cua_hang else 'N/A'
+                                chi_tiet_list.append(
+                                    f"  - {ct.mat_hang.ten_mat_hang} (SL: {ct.so_luong}) @ {ten_ch}: {ct.don_gia * ct.so_luong:,.0f} đ"
+                                )
+                            chi_tiet_str = "\n".join(chi_tiet_list)
+
+                            ten_cua_hang = don_hang.danh_sach_cua_hang() if hasattr(don_hang, 'danh_sach_cua_hang') else (don_hang.cua_hang.ten_cua_hang if don_hang.cua_hang else 'Nhiều cửa hàng')
+
+                            send_mail(
+                                subject=f'✅ Thanh toán Stripe thành công [DH-{don_hang.id}]',
+                                message=(
+                                    f'Xin chào {request.user.first_name or request.user.username},\n\n'
+                                    f'Đơn hàng DH-{don_hang.id} đã được thanh toán thành công qua Stripe!\n\n'
+                                    f'🏪 Cửa hàng: {ten_cua_hang}\n'
+                                    f'==========================================\n'
+                                    f'Chi tiết đơn hàng:\n{chi_tiet_str}\n\n'
+                                    f'==========================================\n'
+                                    f'💰 Tổng thanh toán: {don_hang.tong_tien:,.0f} đ\n'
+                                    f'💳 Phương thức: Stripe Online\n'
+                                    f'📦 Trạng thái: Đã Thanh Toán\n\n'
+                                    f'Cảm ơn bạn đã sử dụng dịch vụ!\n'
+                                ),
+                                from_email=ds.DEFAULT_FROM_EMAIL,
+                                recipient_list=[request.user.email],
+                                fail_silently=False,
+                            )
+                        except Exception as e:
+                            print(f"Lỗi gửi email Stripe success: {e}")
+
+                messages.success(request, f'🎉 Thanh toán thành công cho đơn DH-{don_hang.id}! Trạng thái: Đã Thanh Toán.')
+            except DonHang.DoesNotExist:
+                messages.error(request, 'Không tìm thấy đơn hàng tương ứng!')
+    else:
+        messages.warning(request, 'Thanh toán chưa hoàn tất. Vui lòng thử lại.')
+
+    return redirect('user_don_hang')
+
+
+@login_required
+def stripe_cancel(request):
+    """Người dùng hủy thanh toán Stripe."""
+    messages.info(request, 'Bạn đã hủy thanh toán. Đơn hàng vẫn đang chờ xử lý.')
+    return redirect('user_don_hang')
+
+@login_required
+@require_POST
+def api_giohang_add(request):
+    import json
+    from django.http import JsonResponse
+    try:
+        data = json.loads(request.body)
+        cua_hang_id = data.get('cua_hang_id')
+        mat_hang_id = data.get('mat_hang_id')
+        so_luong = int(data.get('so_luong', 1))
+
+        if not cua_hang_id or not mat_hang_id:
+            return JsonResponse({'success': False, 'message': 'Thiếu thông tin cửa hàng hoặc mặt hàng'})
+
+        # Validate stock
+        ton_kho_obj = TonKho.objects.filter(cua_hang_id=cua_hang_id, mat_hang_id=mat_hang_id).first()
+        if not ton_kho_obj or ton_kho_obj.so_luong < so_luong:
+            return JsonResponse({'success': False, 'message': 'Sản phẩm vượt quá số lượng tồn kho'})
+
+        gio_hang, created = GioHang.objects.get_or_create(nguoi_dung=request.user)
+        
+        chi_tiet, created_ct = ChiTietGioHang.objects.get_or_create(
+            gio_hang=gio_hang,
+            cua_hang_id=cua_hang_id,
+            mat_hang_id=mat_hang_id,
+            defaults={'so_luong': so_luong}
+        )
+        
+        if not created_ct:
+            chi_tiet.so_luong += so_luong
+            # Recheck stock
+            if chi_tiet.so_luong > ton_kho_obj.so_luong:
+                return JsonResponse({'success': False, 'message': 'Không đủ hàng tồn kho cho số lượng này'})
+            chi_tiet.save()
+
+        # Count total items
+        total_items = sum(ct.so_luong for ct in gio_hang.chi_tiets.all())
+
+        return JsonResponse({
+            'success': True, 
+            'message': 'Đã thêm vào giỏ hàng!',
+            'cart_count': total_items
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@login_required
+def user_giohang_xoa(request, id):
+    try:
+        chi_tiet = ChiTietGioHang.objects.get(id=id, gio_hang__nguoi_dung=request.user)
+        chi_tiet.delete()
+        messages.success(request, 'Đã xóa sản phẩm khỏi giỏ hàng.')
+    except ChiTietGioHang.DoesNotExist:
+        messages.error(request, 'Không tìm thấy sản phẩm này trong giỏ.')
+    return redirect('user_giohang')

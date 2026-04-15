@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Giỏ Hàng Của Bạn</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f7f6;
+        }
+
+        .topbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .topbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 5px;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .topbar a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .topbar .brand {
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .cart-store-group {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .store-name-header {
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f4f8;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #4a5568;
+            flex: 2;
+        }
+
+        .item-price,
+        .item-qty,
+        .item-total {
+            flex: 1;
+            text-align: center;
+        }
+
+        .item-total {
+            font-weight: bold;
+            color: #38a169;
+        }
+
+        .item-action {
+            flex: 0.5;
+            text-align: right;
+        }
+
+        .btn-checkout {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+
+        .btn-checkout:hover {
+            background: #38a169;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 20px;
+        }
+
+        .empty-cart {
+            text-align: center;
+            padding: 50px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .empty-cart i {
+            font-size: 60px;
+            color: #cbd5e0;
+            margin-bottom: 20px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .col-row {
+            display: flex;
+            gap: 20px;
+        }
+
+        .col-8 {
+            flex: 2;
+        }
+
+        .col-4 {
+            flex: 1;
+        }
+
+        .header-label {
+            display: flex;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #a0aec0;
+            padding: 0 5px;
+            margin-bottom: 5px;
+        }
+
+        .footer-row {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f7fafc;
+            padding: 12px 15px;
+            border-radius: 8px;
+        }
+
+        .alert-info {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <span class="brand">🛒 Giỏ Hàng</span>
+        <div>
+            <a href="{% url 'trang_chu' %}">🗺️ Bản đồ</a>
+            <a href="{% url 'user_profile' %}">👤 Hồ sơ</a>
+            <a href="{% url 'user_don_hang' %}">📦 Đơn hàng</a>
+            <a href="{% url 'user_logout' %}">🚪 Đăng xuất</a>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if gio_hang_theo_cua_hang %}
+        {% if messages %}
+        <ul
+            style="list-style:none; padding:10px; margin-bottom:15px; border-radius:6px; background:#e8f5e9; color:#2f855a; border:1px solid #c6f6d5;">
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="POST" action="{% url 'user_giohang_thanhtoan_all' %}" id="checkout-all-form">
+            {% csrf_token %}
+            <div class="col-row">
+                <div class="col-8">
+                    {% for group in gio_hang_theo_cua_hang %}
+                    <div class="cart-store-group">
+                        <div class="store-name-header">
+                            <h5><i class="fas fa-store" style="color:#667eea;"></i> {{ group.cua_hang.ten_cua_hang }}
+                            </h5>
+                        </div>
+
+                        <div class="header-label">
+                            <div style="flex:2;">Sản phẩm</div>
+                            <div style="flex:1; text-align:center;">Đơn giá</div>
+                            <div style="flex:1; text-align:center;">Số lượng</div>
+                            <div style="flex:1; text-align:center;">Thành tiền</div>
+                            <div style="flex:0.5; text-align:right;">Xóa</div>
+                        </div>
+
+                        {% for it in group.items %}
+                        <div class="item-row">
+                            <div class="item-name">{{ it.chi_tiet.mat_hang.ten_mat_hang }}</div>
+                            <div class="item-price">{{ it.chi_tiet.mat_hang.gia_ban|floatformat:0 }} đ</div>
+                            <div class="item-qty">{{ it.chi_tiet.so_luong }}</div>
+                            <div class="item-total">{{ it.thanh_tien|floatformat:0 }} đ</div>
+                            <div class="item-action">
+                                <a href="{% url 'user_giohang_xoa' it.chi_tiet.id %}" style="color:#e53e3e;"
+                                    onclick="return confirm('Xóa sản phẩm này?')" title="Xóa">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="footer-row">
+                            <div><strong>Tổng:</strong> <span
+                                    style="color:#38a169; font-size:1.1rem; font-weight:bold;">{{ group.tong_tien_cua_hang|floatformat:0 }} đ</span></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="col-4">
+                    <div class="summary-card">
+                        <h5 style="border-bottom:2px solid #edf2f7; padding-bottom:10px; margin-bottom:15px;">Tổng Kết
+                        </h5>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <span>Số cửa hàng:</span>
+                            <strong>{{ gio_hang_theo_cua_hang|length }}</strong>
+                        </div>
+                        <div
+                            style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #edf2f7; padding-bottom:15px;">
+                            <span>Tổng tiền:</span>
+                            <strong style="color:#38a169; font-size:1.3rem;">{{ tong_tien_gio_hang|floatformat:0 }}
+                                đ</strong>
+                        </div>
+                        <div style="margin-top:20px;">
+                            <label style="font-size:0.9rem; font-weight:600; color:#4a5568;">Số điện thoại <span
+                                    style="color:red">*</span></label>
+                            <input type="text" name="so_dien_thoai" required
+                                value="{{ request.user.profile.so_dien_thoai|default:'' }}"
+                                style="width:100%; padding:8px 10px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:10px; margin-top:5px;">
+
+                            <label style="font-size:0.9rem; font-weight:600; color:#4a5568;">Vị trí giao dịch (📍 Có thể
+                                chọn trên bản đồ)</label>
+                            <div style="display:flex; justify-content:flex-end; margin-bottom:5px;">
+                                <button type="button" class="btn-location" onclick="locateMe()"
+                                    style="padding:6px 12px; background:#ebf8ff; color:#3182ce; border:1px solid #63b3ed; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600; transition:all 0.2s;">
+                                    <i class="fas fa-crosshairs"></i> Vị trí của tôi
+                                </button>
+                            </div>
+                            <div id="checkout-map"
+                                style="height: 200px; width:100%; border-radius:8px; margin-bottom:10px; border:1px solid #cbd5e0; z-index:1;">
+                            </div>
+
+                            <label style="font-size:0.9rem; font-weight:600; color:#4a5568;">Địa chỉ giao hàng (Tất cả
+                                đơn) <span style="color:red">*</span></label>
+                            <textarea id="dia_chi_input" name="dia_chi_giao_hang" required rows="2"
+                                style="width:100%; padding:8px 10px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:10px; margin-top:5px; resize:vertical;"></textarea>
+                            <input type="hidden" name="toa_do_giao_hang" id="toa_do_input" value="">
+
+                            <label style="font-size:0.9rem; font-weight:600; color:#4a5568;">Ghi chú</label>
+                            <textarea name="ghi_chu" rows="2"
+                                style="width:100%; padding:8px 10px; border:1px solid #cbd5e0; border-radius:6px; margin-bottom:15px; margin-top:5px; resize:vertical;"></textarea>
+
+                            <button type="button" class="btn-checkout"
+                                style="width:100%; text-align:center; padding:12px; font-size:1rem; border:none; cursor:pointer;"
+                                onclick="openPaymentModal(event)">
+                                ✅ Đặt Hàng Tất Cả
+                            </button>
+                            <input type="hidden" name="payment_method" id="payment_method_input" value="cod">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="empty-cart">
+            <i class="fas fa-shopping-basket"></i>
+            <h4>Giỏ hàng trống</h4>
+            <p style="color:#a0aec0; margin:15px 0;">Hãy thêm sản phẩm từ bản đồ nhé!</p>
+            <a href="{% url 'trang_chu' %}" class="btn-primary">🗺️ Quay lại bản đồ</a>
+        </div>
+    </div>
+    {% endif %}
+    </div>
+
+    <!-- Payment Modal for Cart -->
+    <div id="paymentModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:30px; border-radius:12px; max-width:500px; width:90%; text-align:center;">
+            <h2 style="margin-bottom:20px; color:#2d3748;">Chọn Phương Thức Thanh Toán</h2>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <button type="button" onclick="submitOrder('cod')"
+                    style="padding:15px; background:#48bb78; color:white; border:none; border-radius:8px; font-size:16px; cursor:pointer; font-weight:bold;">
+                    💵 Nhận hàng tại chỗ rồi mới trả tiền (COD)
+                </button>
+                <button type="button" onclick="submitOrder('stripe')"
+                    style="padding:15px; background:#667eea; color:white; border:none; border-radius:8px; font-size:16px; cursor:pointer; font-weight:bold;">
+                    💳 Thanh toán trực tuyến bằng Stripe
+                </button>
+                <button type="button" onclick="document.getElementById('paymentModal').style.display='none'"
+                    style="padding:10px; background:#e2e8f0; color:#4a5568; border:none; border-radius:8px; font-size:14px; cursor:pointer; margin-top:10px;">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        function openPaymentModal(e) {
+            e.preventDefault();
+            const form = document.getElementById('checkout-all-form');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function submitOrder(method) {
+            if (method === 'cod') {
+                if (!confirm('Tiến hành đặt hàng tất cả sản phẩm trong giỏ?')) return;
+            }
+            document.getElementById('payment_method_input').value = method;
+            document.getElementById('paymentModal').style.display = 'none';
+            document.getElementById('checkout-all-form').submit();
+        }
+
+        var map, marker;
+        document.addEventListener("DOMContentLoaded", function () {
+            // Default center: HCM
+            var chLat = 10.762622;
+            var chLng = 106.660172;
+
+            map = L.map('checkout-map').setView([chLat, chLng], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            marker = L.marker([chLat, chLng], { draggable: 'true' }).addTo(map);
+
+            marker.on('dragend', function (e) {
+                var pos = marker.getLatLng();
+                updateLocationDetails(pos.lat, pos.lng);
+            });
+
+            map.on('click', function (e) {
+                marker.setLatLng(e.latlng);
+                updateLocationDetails(e.latlng.lat, e.latlng.lng);
+            });
+        });
+
+        function locateMe() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    map.setView([lat, lng], 16);
+                    marker.setLatLng([lat, lng]);
+                    updateLocationDetails(lat, lng);
+                }, function (error) {
+                    alert('Không thể lấy được vị trí GPS của bạn.');
+                });
+            } else {
+                alert('Trình duyệt của bạn không hỗ trợ định vị.');
+            }
+        }
+
+        function updateLocationDetails(lat, lng) {
+            var toaDoInput = document.getElementById('toa_do_input');
+            if (toaDoInput) toaDoInput.value = lng + ',' + lat;
+
+            // Hien thi loading...
+            var diaChiInput = document.getElementById('dia_chi_input');
+            diaChiInput.value = "Đang lấy địa chỉ...";
+
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=vi')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.display_name) {
+                        diaChiInput.value = data.display_name;
+                    } else {
+                        diaChiInput.value = "Tọa độ: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+                    }
+                })
+                .catch(err => {
+                    diaChiInput.value = "Tọa độ: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+                });
+        }
+    </script>
+</body>
+
+</html>

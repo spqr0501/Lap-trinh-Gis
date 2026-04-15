@@ -314,18 +314,41 @@
     </div>
 </div>
 
-<div class="card" style="margin-bottom:1.5rem;">
-    <h2 id="revenueTitle">📈 Doanh Thu</h2>
-    <div class="filter-group">
+<div class="card" style="margin-bottom:1.5rem; position:relative;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 id="revenueTitle" style="margin-bottom:0;">📈 Doanh Thu</h2>
+        <div style="display:flex; gap:10px;">
+            <a href="#" id="btnExportExcelDashboard" class="btn btn-success"
+                style="padding:6px 12px; font-size:0.85rem; border-radius:4px; text-decoration:none;">📊 Xuất Excel</a>
+        </div>
+    </div>
+    <div class="filter-group" style="margin-top:15px;">
         <button class="filter-btn" data-filter="7ngay">7 Ngày</button>
         <button class="filter-btn" data-filter="30ngay">30 Ngày</button>
         <button class="filter-btn" data-filter="thang_truoc">Tháng trước</button>
         <button class="filter-btn" data-filter="quy_nay">Quý này</button>
+        <button class="filter-btn" data-filter="quy_truoc">Quý trước</button>
         <button class="filter-btn active" data-filter="6thang">6 Tháng</button>
         <button class="filter-btn" data-filter="12thang">12 Tháng</button>
         <button class="filter-btn" data-filter="nam_nay">Năm nay</button>
         <button class="filter-btn" data-filter="nam_truoc">Năm trước</button>
+        <button class="filter-btn" data-filter="tuy_chon">Tùy chọn ngày...</button>
     </div>
+
+    <div id="tuy_chon_dashboard_container"
+        style="display:none; gap:10px; margin-bottom:15px; align-items:flex-end; background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #e2e8f0; width:max-content;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:12px; font-weight:bold; color:#4a5568;">Từ ngày</label>
+            <input type="date" id="dash_tu_ngay" style="padding:5px 8px; border:1px solid #cbd5e0; border-radius:4px;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:12px; font-weight:bold; color:#4a5568;">Đến ngày</label>
+            <input type="date" id="dash_den_ngay" style="padding:5px 8px; border:1px solid #cbd5e0; border-radius:4px;">
+        </div>
+        <button id="btnApplyDashCustomDate" class="filter-btn"
+            style="background:#4a5568; color:white; border-color:#4a5568;">Áp dụng</button>
+    </div>
+
     <canvas id="revenueChart" height="80"></canvas>
 </div>
 
@@ -368,7 +391,8 @@
             <tr>
                 <td><strong>{{ dg.cua_hang.ten_cua_hang }}</strong></td>
                 <td>{% if dg.nguoi_dung %}{% if dg.nguoi_dung.last_name %}{{ dg.nguoi_dung.last_name }} {% endif %}
-                    {% if dg.nguoi_dung.first_name %}{{ dg.nguoi_dung.first_name }}{% elif not dg.nguoi_dung.last_name %}{{dg.nguoi_dung.username }}{% endif %}{% else %}Ẩn danh{% endif %}</td>
+                    {% if dg.nguoi_dung.first_name %}{{ dg.nguoi_dung.first_name }}{% elif not dg.nguoi_dung.last_name %}
+                    {{dg.nguoi_dung.username }}{% endif %}{% else %}Ẩn danh{% endif %}</td>
                 <td><span class="rating">{% for i in "12345" %}{% if forloop.counter <= dg.diem %}★{% else %}☆{% endif %}{% endfor %}</span>
                 </td>
                 <td>{{ dg.nhan_xet|truncatewords:15 }}</td>
@@ -459,26 +483,71 @@
         '30ngay': '📊 Doanh Thu 30 Ngày Qua',
         'thang_truoc': '📅 Doanh Thu Tháng Trước',
         'quy_nay': '📅 Doanh Thu Quý Này',
+        'quy_truoc': '📅 Doanh Thu Quý Trước',
         '6thang': '📈 Doanh Thu 6 Tháng',
         '12thang': '📈 Doanh Thu 12 Tháng',
         'nam_nay': '📈 Doanh Thu Năm Nay',
-        'nam_truoc': '📈 Doanh Thu Năm Trước'
+        'nam_truoc': '📈 Doanh Thu Năm Trước',
+        'tuy_chon': '📈 Doanh Thu Tùy Chọn'
     };
-    document.querySelectorAll('.filter-btn').forEach(function (btn) {
+
+    let currentFilter = '6thang';
+
+    function updateChartAndExportLinks(filterKey, tuNgayVal = '', denNgayVal = '') {
+        document.getElementById('revenueTitle').textContent = filterLabels[filterKey] || 'Doanh Thu';
+
+        // Update Action Links
+        let exportUrl = "{% url 'admin_doanhthu_export_excel' %}?loai_loc=" + filterKey;
+        if (filterKey === 'tuy_chon') {
+            exportUrl += "&tu_ngay=" + tuNgayVal + "&den_ngay=" + denNgayVal;
+        }
+        document.getElementById('btnExportExcelDashboard').href = exportUrl;
+
+        // Fetch Chart Data
+        let apiEndpoint = '/api/dashboard-revenue/?filter=' + filterKey;
+        if (filterKey === 'tuy_chon') {
+            apiEndpoint += '&tu_ngay=' + tuNgayVal + '&den_ngay=' + denNgayVal;
+        }
+
+        fetch(apiEndpoint)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                revenueChart.data.labels = data.labels;
+                revenueChart.data.datasets[0].data = data.values;
+                revenueChart.update();
+            });
+    }
+
+    document.querySelectorAll('.filter-btn:not(#btnApplyDashCustomDate)').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+            document.querySelectorAll('.filter-btn:not(#btnApplyDashCustomDate)').forEach(function (b) { b.classList.remove('active'); });
             this.classList.add('active');
-            var filter = this.getAttribute('data-filter');
-            document.getElementById('revenueTitle').textContent = filterLabels[filter] || 'Doanh Thu';
-            fetch('/api/dashboard-revenue/?filter=' + filter)
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    revenueChart.data.labels = data.labels;
-                    revenueChart.data.datasets[0].data = data.values;
-                    revenueChart.update();
-                });
+            let filter = this.getAttribute('data-filter');
+            currentFilter = filter;
+
+            var container = document.getElementById('tuy_chon_dashboard_container');
+            if (filter === 'tuy_chon') {
+                container.style.display = 'flex';
+                // khong tu dong load, cho nguoi dung nhan Ap dung
+            } else {
+                container.style.display = 'none';
+                updateChartAndExportLinks(filter);
+            }
         });
     });
+
+    document.getElementById('btnApplyDashCustomDate').addEventListener('click', function () {
+        let tuDate = document.getElementById('dash_tu_ngay').value;
+        let denDate = document.getElementById('dash_den_ngay').value;
+        if (!tuDate && !denDate) {
+            alert('Vui lòng chọn ngày!');
+            return;
+        }
+        updateChartAndExportLinks('tuy_chon', tuDate, denDate);
+    });
+
+    // Initial setup
+    updateChartAndExportLinks('6thang');
 });
 </script>
 {% endblock %}

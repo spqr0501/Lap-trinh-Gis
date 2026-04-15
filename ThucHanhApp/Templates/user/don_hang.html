@@ -314,7 +314,7 @@
                         {% for dh in don_hangs %}
                         <tr>
                             <td>DH-{{ dh.id }}</td>
-                            <td>{{ dh.cua_hang.ten_cua_hang }}</td>
+                            <td>{{ dh.danh_sach_cua_hang }}</td>
                             <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
                             <td class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
                             <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span>
@@ -334,6 +334,35 @@
                         {% endfor %}
                     </tbody>
                 </table>
+
+                <!-- Pagination Controls -->
+                {% if don_hangs.has_other_pages %}
+                <div style="margin-top: 20px; display: flex; justify-content: center; gap: 8px;">
+                    {% if don_hangs.has_previous %}
+                    <a href="?page={{ don_hangs.previous_page_number }}{% if request.GET.tab %}&tab={{ request.GET.tab }}{% endif %}"
+                        style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #4a56e2; font-weight: 500;">&laquo;
+                        Trước</a>
+                    {% endif %}
+
+                    {% for num in don_hangs.paginator.page_range %}
+                    {% if don_hangs.number == num %}
+                    <span
+                        style="padding:6px 12px; background:#4a56e2; color:#fff; border-radius:4px; font-weight:bold;">{{ num }}</span>
+                    {% elif num > don_hangs.number|add:'-3' and num < don_hangs.number|add:'3' %} <a
+                        href="?page={{ num }}{% if request.GET.tab %}&tab={{ request.GET.tab }}{% endif %}"
+                        style="padding:6px 12px; border:1px solid #ddd; border-radius:4px; text-decoration:none; color:#333;">
+                        {{ num }}</a>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if don_hangs.has_next %}
+                        <a href="?page={{ don_hangs.next_page_number }}{% if request.GET.tab %}&tab={{ request.GET.tab }}{% endif %}"
+                            style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #4a56e2; font-weight: 500;">Sau
+                            &raquo;</a>
+                        {% endif %}
+                </div>
+                {% endif %}
+
             </div>
         </div>
     </div>

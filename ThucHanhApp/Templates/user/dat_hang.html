@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Đặt Hàng - {{ cua_hang.ten_cua_hang }}</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * {
             margin: 0;
@@ -194,7 +196,7 @@
         </div>
 
         <div class="card">
-            <h1>🛒 Đặt Hàng</h1>
+            <h1>🛒 Chọn Sản Phẩm</h1>
             <div class="store-info">
                 📍 <strong>{{ cua_hang.ten_cua_hang }}</strong> — {{ cua_hang.dia_chi }}
             </div>
@@ -207,7 +209,8 @@
             </ul>
             {% endif %}
 
-            <form method="post" novalidate onsubmit="return kiem_tra_dat_hang(event)">
+            <!-- bỏ onsubmit ở cứng html để tránh conflict lúc submit thật, ta gọi tay -->
+            <form method="post" novalidate id="checkoutForm">
                 {% csrf_token %}
                 <table>
                     <thead>
@@ -231,14 +234,8 @@
                             <td>
                                 <input type="hidden" name="mat_hang_id" value="" id="mh_{{ forloop.counter0 }}">
                                 <div>
-                                    <input type="number"
-                                        name="so_luong_sp"
-                                        value="0"
-                                        min="0"
-                                        max="{{ tk.so_luong }}"
-                                        data-max="{{ tk.so_luong }}"
-                                        id="sl_{{ forloop.counter0 }}"
-                                        disabled
+                                    <input type="number" name="so_luong_sp" value="0" min="0" max="{{ tk.so_luong }}"
+                                        data-max="{{ tk.so_luong }}" id="sl_{{ forloop.counter0 }}" disabled
                                         oninput="kiem_tra_sl({{ forloop.counter0 }})"
                                         onblur="kiem_tra_sl({{ forloop.counter0 }})">
                                     <div id="sl_err_{{ forloop.counter0 }}" class="qty-error-text"></div>
@@ -255,22 +252,104 @@
 
                 <div id="form-alert" class="form-alert"></div>
 
-                <div style="margin-top:15px;">
-                    <label><strong>Ghi chú:</strong></label>
-                    <textarea name="ghi_chu" placeholder="VD: Giao trước 5h chiều..."></textarea>
+                <div style="margin-top:15px; display: flex; gap: 15px;">
+                    <div style="flex: 1;">
+                        <label><strong>Số điện thoại nhận hàng:</strong> <span style="color:red">*</span></label>
+                        <input type="text" name="so_dien_thoai" required
+                            value="{{ request.user.profile.so_dien_thoai|default:'' }}"
+                            style="width:100%; padding:8px 12px; border:1px solid #ccc; border-radius:6px; margin-top:5px; margin-bottom:10px;"
+                            placeholder="Nhập số điện thoại...">
+
+                        <label><strong>Địa chỉ nhận hàng:</strong> <span style="color:red">*</span></label>
+                        <textarea id="dia_chi_input" name="dia_chi_giao_hang" required rows="2"
+                            style="width:100%; padding:8px 12px; border:1px solid #ccc; border-radius:6px; margin-top:5px; margin-bottom:10px; resize:vertical;"
+                            placeholder="Nhập địa chỉ giao hàng hoặc chọn trên bản đồ..."></textarea>
+
+                        <input type="hidden" name="toa_do_giao_hang" id="toa_do_input">
+
+                        <label><strong>Ghi chú đơn hàng:</strong></label>
+                        <textarea name="ghi_chu" rows="2" placeholder="VD: Giao trước 5h chiều..."
+                            style="width:100%; padding:8px 12px; border:1px solid #ccc; border-radius:6px; margin-top:5px; resize:vertical;"></textarea>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display:flex; justify-content:space-between;">
+                            <strong>Bản đồ chọn vị trí:</strong>
+                            <button type="button" onclick="locateMe()"
+                                style="background:transparent; border:none; color:#4a56e2; cursor:pointer; font-weight:600; font-size:0.9rem;">📍
+                                Vị trí của tôi</button>
+                        </label>
+                        <div id="checkout-map"
+                            style="height: 220px; width:100%; border-radius:8px; border:1px solid #ccc; margin-top:5px; z-index: 1;">
+                        </div>
+                        <small style="color:#666; display:block; margin-top:5px;">💡 Kéo thả ghim trên bản đồ để TỰ ĐỘNG
+                            điền địa chỉ vào ô bên trái.</small>
+                    </div>
                 </div>
 
                 <div style="margin-top:20px; display:flex; gap:10px;">
-                    <button type="submit" class="btn btn-success">✅ Đặt Hàng</button>
+                    <button type="button" class="btn" style="background:#4fd1c5; color:white;"
+                        onclick="them_vao_gio_hang(event)">🛒 Thêm Vào Giỏ</button>
+                    <!-- Bật Modal thay vì submit chay -->
+                    <button type="button" class="btn btn-success" onclick="openPaymentModal(event)">✅ Đặt Hàng
+                        Ngay</button>
                     <a href="{% url 'trang_chu' %}" class="btn btn-secondary">Hủy</a>
                 </div>
+
+                <!-- Input ẩn truyền phương thức thanh toán -->
+                <input type="hidden" name="payment_method" id="payment_method_input" value="cod">
             </form>
         </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div id="paymentModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:white; padding:30px; border-radius:12px; max-width:500px; width:90%; text-align:center;">
+            <h2 style="margin-bottom:20px; color:#2d3748;">Chọn Phương Thức Thanh Toán</h2>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <button type="button" onclick="submitOrder('cod')"
+                    style="padding:15px; background:#48bb78; color:white; border:none; border-radius:8px; font-size:16px; cursor:pointer; font-weight:bold;">
+                    💵 Nhận hàng tại chỗ rồi mới trả tiền (COD)
+                </button>
+                <button type="button" onclick="submitOrder('stripe')"
+                    style="padding:15px; background:#667eea; color:white; border:none; border-radius:8px; font-size:16px; cursor:pointer; font-weight:bold;">
+                    💳 Thanh toán trực tuyến bằng Stripe
+                </button>
+                <button type="button" onclick="document.getElementById('paymentModal').style.display='none'"
+                    style="padding:10px; background:#e2e8f0; color:#4a5568; border:none; border-radius:8px; font-size:14px; cursor:pointer; margin-top:10px;">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function openPaymentModal(e) {
+            e.preventDefault();
+            const form = document.querySelector('form');
+            if (!kiem_tra_dat_hang(e)) return;
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function submitOrder(method) {
+            document.getElementById('payment_method_input').value = method;
+            document.getElementById('paymentModal').style.display = 'none';
+            const form = document.querySelector('form');
+            // Gỡ bỏ onsubmit để form gửi đi trực tiếp
+            form.onsubmit = null;
+            form.submit();
+        }
         // Inject mat_hang IDs from template
-        var matHangIds = [{% for tk in ton_khos %} {{ tk.mat_hang.id }} {% if not forloop.last %}, {% endif %} {% endfor %}];
+        <!-- prettier-ignore -->
+        var matHangIds = [
+            {% for tk in ton_khos %}
+        {{ tk.mat_hang.id }} {% if not forloop.last %}, {% endif %}
+        {% endfor %}
+];
 
         function toggleRow(checkbox, idx) {
             var mhInput = document.getElementById('mh_' + idx);
@@ -370,6 +449,170 @@
                 return false;
             }
             return true;
+        }
+
+        async function them_vao_gio_hang(ev) {
+            if (!kiem_tra_dat_hang(null)) {
+                return;
+            }
+
+            var cuaHangId = {{ cua_hang.id }};
+        var itemsToAdd = [];
+
+        for (var i = 0; i < matHangIds.length; i++) {
+            var mhInput = document.getElementById('mh_' + i);
+            var slInput = document.getElementById('sl_' + i);
+            if (mhInput && mhInput.value && slInput && !slInput.disabled && slInput.value > 0) {
+                itemsToAdd.push({
+                    cua_hang_id: cuaHangId,
+                    mat_hang_id: mhInput.value,
+                    so_luong: parseInt(slInput.value, 10)
+                });
+            }
+        }
+
+        if (itemsToAdd.length === 0) return;
+
+        // Send requests
+        var alertEl = document.getElementById('form-alert');
+        try {
+            let countSuccess = 0;
+            for (const item of itemsToAdd) {
+                const res = await fetch("{% url 'api_giohang_add' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify(item)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    countSuccess++;
+                    // Cap nhat header
+                    if (data.cart_count !== undefined) {
+                        var counterEl = document.getElementById('cart-counter-header');
+                        if (counterEl) counterEl.textContent = data.cart_count;
+                    }
+                } else {
+                    alert("Lỗi thêm " + item.mat_hang_id + ": " + data.message);
+                }
+            }
+
+            if (countSuccess > 0) {
+                if (alertEl) {
+                    alertEl.textContent = 'Đã thêm thành công ' + countSuccess + ' loại sản phẩm vào giỏ hàng!';
+                    alertEl.classList.add('show');
+                    alertEl.style.background = '#efe';
+                    alertEl.style.color = '#3a3';
+                    alertEl.style.borderColor = '#cfc';
+                }
+                setTimeout(() => {
+                    window.location.href = "{% url 'user_giohang' %}";
+                }, 1000);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Đã xảy ra lỗi khi thêm vào giỏ hàng.");
+        }
+        }
+    </script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map, marker;
+        document.addEventListener("DOMContentLoaded", function () {
+            // Default center: Cửa hàng's location
+            var chLat = {{ cua_hang.geom.y|default:"10.762622"}};
+        var chLng = {{ cua_hang.geom.x|default:"106.660172"}};
+
+        map = L.map('checkout-map').setView([chLat, chLng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        marker = L.marker([chLat, chLng], { draggable: 'true' }).addTo(map);
+
+        marker.on('dragend', function (e) {
+            var pos = marker.getLatLng();
+            updateLocationDetails(pos.lat, pos.lng);
+        });
+
+        map.on('click', function (e) {
+            marker.setLatLng(e.latlng);
+            updateLocationDetails(e.latlng.lat, e.latlng.lng);
+        });
+        });
+
+        function locateMe() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    map.setView([lat, lng], 16);
+                    marker.setLatLng([lat, lng]);
+                    updateLocationDetails(lat, lng);
+                }, function (error) {
+                    alert('Không thể lấy được vị trí GPS của bạn.');
+                });
+            } else {
+                alert('Trình duyệt của bạn không hỗ trợ định vị.');
+            }
+        }
+
+        function updateLocationDetails(lat, lng) {
+            document.getElementById('toa_do_input').value = lng + ',' + lat;
+
+            // Xoa thong bao loi dia chi neu co
+            document.getElementById('dia_chi_input').classList.remove('error-border');
+
+            // Hien thi loading...
+            var diaChiInput = document.getElementById('dia_chi_input');
+            diaChiInput.value = "Đang lấy địa chỉ...";
+
+            fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&accept-language=vi')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.display_name) {
+                        diaChiInput.value = data.display_name;
+                    } else {
+                        diaChiInput.value = "Tọa độ: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+                    }
+                })
+                .catch(err => {
+                    diaChiInput.value = "Tọa độ: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+                });
+        }
+
+        function validateForm() {
+            var isValid = true;
+            var alertBox = document.getElementById('form-alert');
+            alertBox.style.display = 'none';
+            alertBox.innerHTML = '';
+
+            var phone = document.querySelector('input[name="so_dien_thoai"]').value.trim();
+            var address = document.getElementById('dia_chi_input').value.trim();
+
+            var errors = [];
+            if (!phone) errors.push("Số điện thoại không được để trống");
+            if (!address || address === "Đang lấy địa chỉ...") errors.push("Địa chỉ nhận hàng không hợp lệ");
+
+            if (errors.length > 0) {
+                alertBox.innerHTML = errors.join('<br>');
+                alertBox.style.display = 'block';
+                return false;
+            }
+            return true;
+        }
+
+        // Hook vao onsubmit cu ~
+        var oldSubmit = kiem_tra_dat_hang;
+        window.kiem_tra_dat_hang = function (e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                return false;
+            }
+            return oldSubmit(e);
         }
     </script>
 </body>

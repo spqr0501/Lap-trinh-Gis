@@ -10,6 +10,11 @@
         {% csrf_token %}
         <div class="form-group">
             <label for="cua_hang_id">Cửa Hàng:</label>
+            {% if item and not item.cua_hang %}
+            <input type="text" class="form-control"
+                style="width:100%; padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px; background:#edf2f7; color:#718096; font-weight:600;"
+                value="Đơn Nhiều Cửa Hàng (Checkout All)" disabled>
+            {% else %}
             <select id="cua_hang_id" name="cua_hang_id" required>
                 <option value="">-- Chọn cửa hàng --</option>
                 {% for ch in cua_hangs %}
@@ -18,6 +23,7 @@
                 </option>
                 {% endfor %}
             </select>
+            {% endif %}
         </div>
 
         <div class="form-group">
