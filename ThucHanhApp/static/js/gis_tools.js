@@ -399,10 +399,17 @@ function tao_noi_dung_popup_cua_hang(cua_hang) {
         '<button onclick="mo_form_danh_gia(' + cua_hang.id + ', \'' + cua_hang.ten.replace(/'/g, "\\'") + '\')" ' +
         'style="padding:4px 8px; font-size:0.8rem; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">✏️ Viết Đánh Giá</button>' +
         '<a href="/dat-hang/' + cua_hang.id + '/" ' +
-        'style="padding:4px 8px; font-size:0.8rem; background:#ff6b35; color:white; border:none; border-radius:4px; cursor:pointer; text-decoration:none;">🛒 Đặt Hàng</a>' +
+        'style="padding:4px 8px; font-size:0.8rem; background:#ff6b35; color:white; border:none; border-radius:4px; cursor:pointer; text-decoration:none;">🛍 Mua Ngay</a>' +
+        '<button onclick="mo_modal_chon_mat_hang(' + cua_hang.id + ')" ' +
+        'style="padding:4px 8px; font-size:0.8rem; background:#4fd1c5; color:white; border:none; border-radius:4px; cursor:pointer;">🛒 Thêm Vào Giỏ</button>' +
         '</div>';
 
     return noi_dung_popup;
+}
+
+function mo_modal_chon_mat_hang(cua_hang_id) {
+    // Chuyen huong den trang mua hang/them vao gio cua cua hang do
+    window.location.href = '/dat-hang/' + cua_hang_id + '/';
 }
 
 function them_dau_hieu_cua_hang() {

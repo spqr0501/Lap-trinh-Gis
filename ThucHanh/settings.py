@@ -53,8 +53,12 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
+
+# Stripe API Keys
+STRIPE_PUBLIC_KEY = os.environ.get('STRIPE_PUBLIC_KEY', 'pk_test_51TFGfSCTdSc4o7mItbuOp5I2xFLdwcBmYJTw5NRhJGIW7mOTT7sfKFyksZzbPwwYLdsKAv5cRebCc5zO15btNVUb00tqQ2ZlSs')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', 'sk_test_51TFGfSCTdSc4o7mIsXH9jw2VIM2jqf38V6LdVaQ8MAZR23FhFoiChvT7GziwY5pWBWAreInWyChnhVwvDGGPdnbG00Sz6jVgwr')
+
 
 OSGEO4W = r'E:\OSGEO4W'
 os.environ['OSGEO4W_ROOT'] = OSGEO4W

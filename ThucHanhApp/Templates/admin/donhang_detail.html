@@ -7,7 +7,7 @@
     <h1>Chi Tiết Đơn Hàng: DH-{{ don_hang.id }}</h1>
 
     <div style="margin-bottom: 20px;">
-        <p><strong>Cửa hàng:</strong> {{ don_hang.cua_hang.ten_cua_hang }}</p>
+        <p><strong>Cửa hàng:</strong> {{ don_hang.danh_sach_cua_hang }}</p>
         <p><strong>Ngày đặt:</strong> {{ don_hang.ngay_dat|date:"d/m/Y H:i" }}</p>
         <p><strong>Người đặt:</strong>
             {% if don_hang.nguoi_dung %}
@@ -24,6 +24,8 @@
             Ẩn danh
             {% endif %}
         </p>
+        <p><strong>SĐT giao hàng:</strong> {{ don_hang.sdt_giao_hang|default:"Chưa cập nhật" }}</p>
+        <p><strong>Địa chỉ giao hàng:</strong> {{ don_hang.dia_chi_giao_hang|default:"Chưa cập nhật" }}</p>
         <p><strong>Trạng thái:</strong>
             {% if don_hang.trang_thai == 'da_thanh_toan' %}
             <span style="color:green; font-weight:bold;">{{ don_hang.get_trang_thai_display }}</span>
@@ -102,7 +104,7 @@
     style="position:absolute; left:-9999px; top:0; width:800px; background:#fff; padding:40px; font-family:'Segoe UI', Arial, sans-serif;">
     <h1 style="text-align:center; color:#667eea; font-size:24px; margin-bottom:25px;">HÓA ĐƠN - DH-{{ don_hang.id }}
     </h1>
-    <p><strong>Cửa hàng:</strong> {{ don_hang.cua_hang.ten_cua_hang }}</p>
+    <p><strong>Cửa hàng:</strong> {{ don_hang.danh_sach_cua_hang }}</p>
     <p><strong>Ngày đặt:</strong> {{ don_hang.ngay_dat|date:"d/m/Y H:i" }}</p>
     <p><strong>Người đặt:</strong>
         {% if don_hang.nguoi_dung %}{% if don_hang.nguoi_dung.last_name %}{{ don_hang.nguoi_dung.last_name }} {% endif %}
@@ -110,6 +112,8 @@
         {% if not don_hang.nguoi_dung.first_name and not don_hang.nguoi_dung.last_name %}{{ don_hang.nguoi_dung.username }}
         {% endif %}{% else %}Ẩn danh{% endif %}
     </p>
+    <p><strong>SĐT giao hàng:</strong> {{ don_hang.sdt_giao_hang|default:"Chưa cập nhật" }}</p>
+    <p><strong>Địa chỉ giao hàng:</strong> {{ don_hang.dia_chi_giao_hang|default:"Chưa cập nhật" }}</p>
     <p><strong>Trạng thái:</strong> {{ don_hang.get_trang_thai_display }}</p>
     <p><strong>Ghi chú:</strong> {{ don_hang.ghi_chu|default:"Không có" }}</p>
     <table style="width:100%; border-collapse:collapse; margin-top:18px;">

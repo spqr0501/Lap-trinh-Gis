@@ -24,6 +24,7 @@ urlpatterns = [
     path('quan-ly/thong-bao/<int:id>/doc/', views.admin_thong_bao_doc, name='admin_thong_bao_doc'),
     path('quan-ly/thong-bao/doc-tat-ca/', views.admin_thong_bao_doc_tat_ca, name='admin_thong_bao_doc_tat_ca'),
     path('quan-ly/thong-bao/xoa-da-doc/', views.admin_thong_bao_xoa_da_doc, name='admin_thong_bao_xoa_da_doc'),
+    path('quan-ly/thong-bao/<int:id>/xoa/', views.admin_thong_bao_xoa, name='admin_thong_bao_xoa'),
     
     # Admin CRUD: Loai Cua Hang
     path('quan-ly/loai/', views.admin_loai_list, name='admin_loai_list'),
@@ -78,15 +79,29 @@ urlpatterns = [
 
     # Doanh Thu
     path('quan-ly/doanhthu/', views.admin_doanhthu, name='admin_doanhthu'),
+    path('quan-ly/doanhthu/export-excel/', views.admin_doanhthu_export_excel, name='admin_doanhthu_export_excel'),
+    path('quan-ly/doanhthu/export-pdf/', views.admin_doanhthu_export_pdf, name='admin_doanhthu_export_pdf'),
     path('quan-ly/doanhthu/chitiet/', views.admin_doanhthu_chitiet, name='admin_doanhthu_chitiet'),
 
     # User: Dang ky, Dang nhap
     path('dang-ky/', views.user_register, name='user_register'),
     path('dang-nhap/', views.user_login, name='user_login'),
     path('dang-xuat/', views.user_logout, name='user_logout'),
+    path('ho-so/', views.user_profile, name='user_profile'),
 
     # User: Dat hang
     path('dat-hang/<int:cua_hang_id>/', views.user_dat_hang, name='user_dat_hang'),
     path('don-hang-cua-toi/', views.user_don_hang, name='user_don_hang'),
     path('api/don-hang/<int:id>/', views.api_user_donhang_detail, name='api_user_donhang_detail'),
+
+    # User: Gio Hang
+    path('gio-hang/', views.user_giohang, name='user_giohang'),
+    path('gio-hang/thanh-toan-tat-ca/', views.user_giohang_thanhtoan_all, name='user_giohang_thanhtoan_all'),
+    path('gio-hang/thanh-toan/<int:cua_hang_id>/', views.user_giohang_thanhtoan, name='user_giohang_thanhtoan'),
+    path('api/gio-hang/add/', views.api_giohang_add, name='api_giohang_add'),
+    path('gio-hang/xoa/<int:id>/', views.user_giohang_xoa, name='user_giohang_xoa'),
+
+    # Stripe Payment
+    path('stripe/success/', views.stripe_success, name='stripe_success'),
+    path('stripe/cancel/', views.stripe_cancel, name='stripe_cancel'),
 ]

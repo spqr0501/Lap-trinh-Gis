@@ -621,18 +621,19 @@
         <h1>🗺️ Bản Đồ Cửa Hàng Tiện Lợi</h1>
         <div class="header-links">
             {% if user.is_authenticated %}
-            <span style="color: #a8d8ff;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}
+            <a href="{% url 'user_profile' %}" style="color: #a8d8ff; text-decoration:none;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}
                 {% if user.first_name %}{{ user.first_name }}
                 {% else %}{{ user.username }}
                 {% endif %}
-            </span>
+            </a>
+            <a href="{% url 'user_giohang' %}">🛒 Giỏ hàng</a>
             <a href="{% url 'user_don_hang' %}">📦 Đơn hàng</a>
             {% if user.is_staff %}
             <div class="admin-notif-wrap">
                 <button type="button" class="admin-notif-btn" onclick="toggle_admin_notif_dropdown()"
                     title="Thông báo admin">
                     🔔
-                    <span id="admin-notif-badge" class="admin-notif-badge" {% if not admin_unread_count%}style="display:none;" {% endif %}>{{ admin_unread_count }}</span>
+                    <span id="admin-notif-badge" class="admin-notif-badge" {% if not admin_unread_count %}style="display:none;" {% endif %}>{{ admin_unread_count }}</span>
                 </button>
                 <div id="admin-notif-dropdown" class="admin-notif-dropdown">
                     <div class="admin-notif-head">
@@ -836,7 +837,7 @@
         window.WEBGIS_HISTORY_USER_KEY = "{% if user.is_authenticated %}{{ user.username|escapejs }}{% else %}guest{% endif %}";
         // Du lieu cua hang tu Django - load vao bien toan cuc
         // Du lieu cua hang tu Django - load vao bien toan cuc
-du_lieu_cua_hang = [
+        du_lieu_cua_hang = [
     {% for sd in stores_data %}
     {
         "id": {{ sd.store.id }},
@@ -848,7 +849,7 @@ du_lieu_cua_hang = [
         "vi_do": {% if sd.store.geom %}{{ sd.store.geom.y }}{% else %}null{% endif %},
         "kinh_do": {% if sd.store.geom %}{{ sd.store.geom.x }}{% else %}null{% endif %},
 
-        "co_su_kien": {{ sd.has_events|lower }},
+        "co_su_kien": {{ sd.has_events|yesno:"true,false" }},
 
         "danh_sach_su_kien": [
             {% for event in sd.events %}
@@ -858,19 +859,19 @@ du_lieu_cua_hang = [
 
         "so_don_thanh_toan": {{ sd.order_count }},
         "so_danh_gia": {{ sd.review_count }},
-        "diem_tb": {{ sd.diem_tb }},
+        "diem_tb": {{ sd.diem_tb|default:"null" }},
 
         "phan_bo_sao": {
-            "1": {{ sd.phan_bo_sao.1 }},
-            "2": {{ sd.phan_bo_sao.2 }},
-            "3": {{ sd.phan_bo_sao.3 }},
-            "4": {{ sd.phan_bo_sao.4 }},
-            "5": {{ sd.phan_bo_sao.5 }}
+            "1": {{ sd.phan_bo_sao.1|default:0 }},
+            "2": {{ sd.phan_bo_sao.2|default:0 }},
+            "3": {{ sd.phan_bo_sao.3|default:0 }},
+            "4": {{ sd.phan_bo_sao.4|default:0 }},
+            "5": {{ sd.phan_bo_sao.5|default:0 }}
         },
 
         "khoang_cach": null,
         "dau_hieu": null
-    }{% if not forloop.last %}, {% endif %}
+    }{% if not forloop.last %},{% endif %}
     {% endfor %}
 ];
         // Khoi tao ban do khi DOM da san sang
