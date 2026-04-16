@@ -61,6 +61,7 @@ urlpatterns = [
     path('quan-ly/mathang/create/', views.admin_mathang_create, name='admin_mathang_create'),
     path('quan-ly/mathang/<int:id>/update/', views.admin_mathang_update, name='admin_mathang_update'),
     path('quan-ly/mathang/<int:id>/delete/', views.admin_mathang_delete, name='admin_mathang_delete'),
+    path('quan-ly/mathang/import-excel/', views.admin_mathang_import_excel, name='admin_mathang_import_excel'),
 
     # Admin CRUD: Ton Kho
     path('quan-ly/tonkho/', views.admin_tonkho_list, name='admin_tonkho_list'),
@@ -82,6 +83,7 @@ urlpatterns = [
     path('quan-ly/doanhthu/export-excel/', views.admin_doanhthu_export_excel, name='admin_doanhthu_export_excel'),
     path('quan-ly/doanhthu/export-pdf/', views.admin_doanhthu_export_pdf, name='admin_doanhthu_export_pdf'),
     path('quan-ly/doanhthu/chitiet/', views.admin_doanhthu_chitiet, name='admin_doanhthu_chitiet'),
+    path('quan-ly/doanhthu/chitiet/export-excel/', views.admin_doanhthu_chitiet_export_excel, name='admin_doanhthu_chitiet_export_excel'),
 
     # User: Dang ky, Dang nhap
     path('dang-ky/', views.user_register, name='user_register'),

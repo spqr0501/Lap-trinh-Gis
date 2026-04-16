@@ -1,13 +1,35 @@
 {% extends 'admin/base_admin.html' %}
+{% load static %}
 
 {% block title %}Quản Lý Mặt Hàng{% endblock %}
 
 {% block content %}
 <div class="card">
     <h1>Danh Sách Mặt Hàng</h1>
-    <a href="{% url 'admin_mathang_create' %}" class="btn btn-success">Thêm Mới</a>
-    <input type="text" class="search-box" placeholder="🔍 Tìm kiếm..."
-        style="margin-left:15px; padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:250px;">
+    <div style="display:flex; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+        <a href="{% url 'admin_mathang_create' %}" class="btn btn-success">Thêm Mới</a>
+
+        <form method="post" action="{% url 'admin_mathang_import_excel' %}" enctype="multipart/form-data"
+            style="display:flex; gap:6px; align-items:center; margin:0;" id="form-import-excel">
+            {% csrf_token %}
+            <label for="excel_file" class="btn btn-primary"
+                style="background:#2b6cb0; border-color:#2b6cb0; cursor:pointer; margin:0; padding:6px 14px; display:inline-flex; align-items:center; gap:4px; border-radius: 4px;">
+                📥 Nhập từ Excel
+            </label>
+            <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" style="display:none;"
+                onchange="document.getElementById('form-import-excel').submit();">
+        </form>
+
+        <a href="{% static 'mathang_mau.xlsx' %}" download class="btn btn-secondary"
+            style="background: transparent; color: #2b6cb0; border: none; text-decoration: underline; padding: 6px; box-shadow: none;">
+            🔽 Tải file mẫu
+        </a>
+
+        <form method="get" style="margin-left:auto; display:flex;">
+            <input type="text" name="q" value="{{ q }}" class="search-box" placeholder="🔍 Tìm kiếm..."
+                style="padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:250px;">
+        </form>
+    </div>
 
     <table>
         <thead>

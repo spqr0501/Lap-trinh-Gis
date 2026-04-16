@@ -4,7 +4,13 @@
 
 {% block content %}
 <div class="card">
-    <h1>{{ tieu_de }}</h1>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h1 style="margin:0;">{{ tieu_de }}</h1>
+        <a href="{% url 'admin_doanhthu_chitiet_export_excel' %}?thang={{ request.GET.thang }}&cua_hang={{ request.GET.cua_hang }}"
+            class="btn btn-success" style="padding:10px 15px; font-weight:bold;">
+            <i class="fas fa-file-excel"></i> ⬇️ Xuất Excel
+        </a>
+    </div>
 
     <div style="display:flex; gap:20px; margin-bottom:20px;">
         <div class="card" style="flex:1; text-align:center; padding:15px;">
@@ -70,8 +76,8 @@
     document.addEventListener('DOMContentLoaded', function () {
         // Bieu do danh thu theo ngay
         var ngayLabels = {{ chart_ngay_labels| safe }};
-    var ngayValues = {{ chart_ngay_values| safe }};
-    var ngaySoDon = {{ chart_ngay_so_don| safe }};
+        var ngayValues = {{ chart_ngay_values| safe }};
+        var ngaySoDon = {{ chart_ngay_so_don| safe }};
 
     new Chart(document.getElementById('chartNgay'), {
         type: 'line',
