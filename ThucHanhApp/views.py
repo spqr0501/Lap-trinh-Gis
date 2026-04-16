@@ -1748,9 +1748,22 @@ def admin_cuahang_sukien_delete(request, id):
 
 @admin_required
 def admin_mathang_list(request):
-    ds = MatHang.objects.all()
+    ds = MatHang.objects.all().order_by('id')
+    
+    q = request.GET.get('q', '').strip()
+    if q:
+        from django.db.models import Q
+        ds = ds.filter(
+            Q(ten_mat_hang__icontains=q) | 
+            Q(mo_ta__icontains=q)
+        )
+        
     page_obj, items = phan_trang_queryset(request, ds, per_page=10)
-    return render(request, 'admin/mathang_list.html', {'items': items, 'page_obj': page_obj})
+    return render(request, 'admin/mathang_list.html', {
+        'items': items, 
+        'page_obj': page_obj,
+        'q': q
+    })
 
 
 @admin_required
@@ -1786,6 +1799,98 @@ def admin_mathang_delete(request, id):
     muc = get_object_or_404(MatHang, id=id)
     muc.delete()
     messages.success(request, 'Xóa thành công!')
+    return redirect('admin_mathang_list')
+
+
+# ====== ADMIN CRUD: TỒN KHO ======
+
+@admin_required
+def admin_mathang_import_excel(request):
+    """
+    Nhập mặt hàng từ file Excel (.xlsx).
+    Cột bắt buộc: Tên mặt hàng | Đơn vị | Giá bán | Mô tả (tuỳ chọn)
+    - Nếu đã có (theo tên) -> Cập nhật Đơn vị, Giá bán, Mô tả.
+    - Nếu chưa có -> Tạo mới.
+    """
+    if request.method != 'POST':
+        return redirect('admin_mathang_list')
+
+    file = request.FILES.get('excel_file')
+    if not file:
+        messages.error(request, 'Chưa chọn file!')
+        return redirect('admin_mathang_list')
+
+    if not file.name.endswith(('.xlsx', '.xls')):
+        messages.error(request, 'Chỉ hỗ trợ file .xlsx hoặc .xls!')
+        return redirect('admin_mathang_list')
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(file, data_only=True)
+        ws = wb.active
+
+        rows = list(ws.iter_rows(min_row=2, values_only=True))  # bo dong tieu de
+        if not rows:
+            messages.warning(request, 'File Excel trống (không có dữ liệu)!')
+            return redirect('admin_mathang_list')
+
+        thanh_cong = 0
+        loi = []
+        for idx, row in enumerate(rows, start=2):
+            if not row or len(row) < 3:
+                loi.append(f'Dòng {idx}: thiếu cột (cần ít nhất 3 cột Tên, Đơn vị, Giá)')
+                continue
+            
+            ten = str(row[0] or '').strip()
+            don_vi = str(row[1] or '').strip()
+            
+            if not ten or not don_vi:
+                loi.append(f'Dòng {idx}: Tên mặt hàng hoặc đơn vị bị trống')
+                continue
+
+            try:
+                gia = int(row[2])
+            except (TypeError, ValueError):
+                loi.append(f'Dòng {idx}: Giá bán không hợp lệ "{row[2]}"')
+                continue
+
+            if gia < 0:
+                loi.append(f'Dòng {idx}: Giá bán âm ({gia})')
+                continue
+                
+            mo_ta = str(row[3] or '').strip() if len(row) > 3 else ''
+
+            mh, created = MatHang.objects.get_or_create(
+                ten_mat_hang=ten,
+                defaults={'don_vi': don_vi, 'gia_ban': gia, 'mo_ta': mo_ta}
+            )
+            
+            if not created:
+                mh.don_vi = don_vi
+                mh.gia_ban = gia
+                if mo_ta:
+                    mh.mo_ta = mo_ta
+                mh.save()
+                
+            thanh_cong += 1
+
+        ghi_nhat_ky(
+            request,
+            module='Mặt hàng',
+            hanh_dong='import',
+            mo_ta=f"Nhập Excel mặt hàng: {thanh_cong} dòng thành công, {len(loi)} lỗi"
+        )
+
+        if thanh_cong:
+            messages.success(request, f'Nhập thành công {thanh_cong} mặt hàng từ Excel!')
+        for l in loi[:10]:
+            messages.error(request, l)
+        if len(loi) > 10:
+            messages.warning(request, f'... và {len(loi) - 10} lỗi khác.')
+
+    except Exception as e:
+        messages.error(request, f'Lỗi đọc file Excel: {e}')
+
     return redirect('admin_mathang_list')
 
 
@@ -1873,13 +1978,13 @@ def admin_tonkho_create(request):
             defaults={'so_luong': so_luong}
         )
         if not created:
-            ton_kho.so_luong += so_luong
+            ton_kho.so_luong = so_luong
             ton_kho.save()
         ghi_nhat_ky(
             request,
             module='Tồn kho',
             hanh_dong='create' if created else 'update',
-            mo_ta=f"{'Tạo' if created else 'Cộng thêm'} tồn kho {mat_hang.ten_mat_hang} tại {cua_hang.ten_cua_hang}, SL={so_luong}"
+            mo_ta=f"{'Tạo' if created else 'Cập nhật'} tồn kho {mat_hang.ten_mat_hang} tại {cua_hang.ten_cua_hang}, SL={so_luong}"
         )
         messages.success(request, 'Cập nhật tồn kho thành công!')
         return redirect('admin_tonkho_list')
@@ -1947,7 +2052,7 @@ def admin_tonkho_import_excel(request):
 
     Cot bat buoc: Ten cua hang | Ten mat hang | So luong
     - Tim cua hang / mat hang theo ten (case-insensitive, strip).
-    - Neu da co ban ghi TonKho (cua_hang + mat_hang) -> cong them so_luong.
+    - Neu da co ban ghi TonKho (cua_hang + mat_hang) -> CAP NHAT so_luong (ghi de).
     - Neu chua co -> tao moi.
     """
     if request.method != 'POST':
@@ -2025,7 +2130,7 @@ def admin_tonkho_import_excel(request):
                 defaults={'so_luong': so_luong}
             )
             if not created:
-                ton_kho.so_luong += so_luong
+                ton_kho.so_luong = so_luong  # GHI DE (SET) thay vi CONG
                 ton_kho.save()
             thanh_cong += 1
 
@@ -2053,6 +2158,7 @@ def admin_tonkho_import_excel(request):
 
 @admin_required
 def admin_donhang_list(request):
+    from django.db.models import Case, When, IntegerField
     items = DonHang.objects.select_related('cua_hang', 'nguoi_dung').all()
     cua_hangs = CuaHang.objects.all()
 
@@ -2081,10 +2187,22 @@ def admin_donhang_list(request):
     if tong_den:
         items = items.filter(tong_tien__lte=tong_den)
 
-    sap_xep = request.GET.get('sap_xep', '-ngay_dat').strip() or '-ngay_dat'
+    # Sắp xếp ưu tiên: chờ xử lý -> đang giao -> đã thanh toán -> đã hủy
+    thu_tu_trang_thai = Case(
+        When(trang_thai='cho_xu_ly', then=0),
+        When(trang_thai='dang_giao', then=1),
+        When(trang_thai='da_thanh_toan', then=2),
+        When(trang_thai='da_huy', then=3),
+        default=4,
+        output_field=IntegerField(),
+    )
+
+    sap_xep = request.GET.get('sap_xep', '').strip()
     ds_sap_xep_hop_le = ['-ngay_dat', 'ngay_dat', '-tong_tien', 'tong_tien', '-id', 'id']
     if sap_xep in ds_sap_xep_hop_le:
         items = items.order_by(sap_xep)
+    else:
+        items = items.annotate(thu_tu_tt=thu_tu_trang_thai).order_by('thu_tu_tt', '-ngay_dat')
 
     page_obj, page_items = phan_trang_queryset(request, items, per_page=12)
 
@@ -2614,6 +2732,62 @@ def admin_doanhthu_chitiet(request):
         'chart_store_values': json.dumps(chart_store_values),
         'chart_store_so_don': json.dumps(chart_store_so_don),
     })
+
+@admin_required
+def admin_doanhthu_chitiet_export_excel(request):
+    import openpyxl
+    from openpyxl.styles import Font, Alignment
+    from django.http import HttpResponse
+
+    # Lấy lại query giống như admin_doanhthu_chitiet
+    don_hangs = DonHang.objects.filter(trang_thai='da_thanh_toan').select_related('cua_hang')
+    thang = request.GET.get('thang', '')
+    if thang:
+        parts = thang.split('-')
+        if len(parts) == 2:
+            don_hangs = don_hangs.filter(ngay_dat__year=int(parts[0]), ngay_dat__month=int(parts[1]))
+
+    cua_hang_id = request.GET.get('cua_hang', '')
+    if cua_hang_id:
+        cua_hang = get_object_or_404(CuaHang, id=cua_hang_id)
+        don_hangs = don_hangs.filter(cua_hang=cua_hang)
+
+    don_hangs = don_hangs.order_by('-ngay_dat')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Chi Tiet Doanh Thu"
+
+    # Header
+    ws.append(['Mã Đơn', 'Ngày Đặt', 'Cửa Hàng', 'Tổng Tiền', 'Phương Thức'])
+    for col in range(1, 6):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center')
+
+    for dh in don_hangs:
+        ten_ch = dh.cua_hang.ten_cua_hang if dh.cua_hang else "Nhiều cửa hàng"
+        phuong_thuc = dh.phuong_thuc_thanh_toan if hasattr(dh, 'phuong_thuc_thanh_toan') else "N/A"
+        ws.append([
+            f"DH-{dh.id}",
+            dh.ngay_dat.strftime("%Y-%m-%d %H:%M:%S") if dh.ngay_dat else "",
+            ten_ch,
+            int(dh.tong_tien or 0),
+            phuong_thuc
+        ])
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="doanhthu_chitiet.xlsx"'
+    wb.save(response)
+    
+    ghi_nhat_ky(
+        request,
+        module='Doanh thu',
+        hanh_dong='export',
+        mo_ta='Xuất Excel chi tiết doanh thu'
+    )
+    return response
+
 
 
 # ====== USER: DANG KY, DANG NHAP ======
