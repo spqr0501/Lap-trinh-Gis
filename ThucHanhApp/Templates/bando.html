@@ -612,6 +612,78 @@
             color: #718096;
             margin-top: 2px;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            .header {
+                flex-direction: column;
+                padding: 10px;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .header-links {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 5px;
+            }
+
+            .header-links a {
+                padding: 5px 8px;
+                font-size: 0.85rem;
+            }
+
+            .container {
+                flex-direction: column;
+                height: calc(100vh - 100px);
+                /* Adjust based on new header height */
+            }
+
+            #map {
+                flex: 0 0 45%;
+                /* Top 45% is map */
+                width: 100%;
+                min-height: 0;
+            }
+
+            .sidebar {
+                flex: 0 0 55%;
+                /* Bottom 55% is sidebar */
+                width: 100%;
+                border-top: 2px solid #ddd;
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .review-panel {
+                width: 100%;
+                right: -100%;
+            }
+
+            .routing-controls .btn {
+                margin-bottom: 5px;
+            }
+
+            /* Notification dropdown responsive */
+            .admin-notif-dropdown {
+                position: fixed;
+                left: 5%;
+                right: 5%;
+                top: auto;
+                bottom: 10px;
+                width: 90%;
+                max-height: 60vh;
+                border-radius: 12px;
+            }
+        }
     </style>
 </head>
 
@@ -804,13 +876,6 @@
         </div>
     </div>
 
-    <!-- Map Chart Toggle -->
-    <div style="position:fixed; top:160px; right:10px; z-index:1000; display:flex; flex-direction:column; gap:8px;">
-        <button id="btn-toggle-chart" onclick="toggle_bieu_do_ban_do()"
-            style="padding:10px 16px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; box-shadow:0 4px 15px rgba(102,126,234,0.4);">
-            📊 Biểu Đồ
-        </button>
-    </div>
 
     <!-- Review Panel -->
     <div class="review-panel" id="review-panel">
@@ -837,7 +902,7 @@
         window.WEBGIS_HISTORY_USER_KEY = "{% if user.is_authenticated %}{{ user.username|escapejs }}{% else %}guest{% endif %}";
         // Du lieu cua hang tu Django - load vao bien toan cuc
         // Du lieu cua hang tu Django - load vao bien toan cuc
-        du_lieu_cua_hang = [
+ du_lieu_cua_hang = [
     {% for sd in stores_data %}
     {
         "id": {{ sd.store.id }},
@@ -853,7 +918,7 @@
 
         "danh_sach_su_kien": [
             {% for event in sd.events %}
-            "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %}, {% endif %}
+                "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %},{% endif %}
             {% endfor %}
         ],
 
@@ -883,6 +948,9 @@
 
             // Khoi tao ban do tai Da Nang
             khoi_tao_ban_do('map', 16.0544, 108.2022, 13);
+
+            // Tích hợp nút Biểu Đồ vào UI gốc của Leaflet (nằm dưới bộ chỉnh tiles)
+
 
             // Them cac dau hieu cua hang
             them_dau_hieu_cua_hang();

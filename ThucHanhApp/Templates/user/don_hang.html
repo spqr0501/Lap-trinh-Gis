@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đơn Hàng Của Tôi</title>
     <style>
         * {
@@ -229,6 +230,73 @@
             color: #3a3;
             border: 1px solid #cfc;
         }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+                margin: 15px auto;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .layout {
+                flex-direction: column;
+            }
+
+            .history-card {
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 1.3rem;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            /* Card-based table on mobile */
+            .order-card table,
+            .order-card thead,
+            .order-card tbody,
+            .order-card th,
+            .order-card td,
+            .order-card tr {
+                display: block;
+            }
+
+            .order-card thead tr {
+                display: none;
+            }
+
+            .order-card tbody tr {
+                background: #f9fafb;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 12px 14px;
+                margin-bottom: 12px;
+            }
+
+            .order-card tbody td {
+                padding: 4px 0;
+                border-bottom: none;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.92rem;
+            }
+
+            .order-card tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #555;
+                margin-right: 10px;
+                flex-shrink: 0;
+            }
+        }
     </style>
 </head>
 
@@ -313,13 +381,13 @@
                     <tbody>
                         {% for dh in don_hangs %}
                         <tr>
-                            <td>DH-{{ dh.id }}</td>
-                            <td>{{ dh.danh_sach_cua_hang }}</td>
-                            <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
-                            <td class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
-                            <td><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span>
+                            <td data-label="Mã ĐH">DH-{{ dh.id }}</td>
+                            <td data-label="Cửa Hàng">{{ dh.danh_sach_cua_hang }}</td>
+                            <td data-label="Ngày Đặt">{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
+                            <td data-label="Tổng Tiền" class="price">{{ dh.tong_tien|floatformat:0 }}đ</td>
+                            <td data-label="Trạng Thái"><span class="status status-{{ dh.trang_thai }}">{{ dh.get_trang_thai_display }}</span>
                             </td>
-                            <td><button onclick="inPDFUser({{ dh.id }})" title="Tải PDF"
+                            <td data-label=""><button onclick="inPDFUser({{ dh.id }})" title="Tải PDF"
                                     style="padding:5px 8px; font-size:0.75rem; background:transparent; color:#667eea; border:1.5px solid #667eea; border-radius:6px; cursor:pointer; font-weight:600; transition:all .2s;"
                                     onmouseover="this.style.background='#667eea';this.style.color='white'"
                                     onmouseout="this.style.background='transparent';this.style.color='#667eea'">📄

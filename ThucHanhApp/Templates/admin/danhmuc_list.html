@@ -1,0 +1,56 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Quản Lý Danh Mục Mặt Hàng{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>📂 Quản Lý Danh Mục</h1>
+    <div style="display:flex; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+        <a href="{% url 'admin_danhmuc_create' %}" class="btn btn-success">Thêm Mới</a>
+
+        <form method="get" style="margin-left:auto; display:flex;">
+            <input type="text" name="q" value="{{ q }}" class="search-box" placeholder="🔍 Tìm kiếm danh mục..."
+                style="padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:280px;">
+        </form>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên Danh Mục</th>
+                    <th>Mô Tả</th>
+                    <th>Số Mặt Hàng</th>
+                    <th>Hành Động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td><strong>{{ item.ten_danh_muc }}</strong></td>
+                    <td>{{ item.mo_ta|truncatewords:15 }}</td>
+                    <td>
+                        <span
+                            style="background:#e2e8f0; padding:2px 8px; border-radius:12px; font-weight:bold; color:#2d3748;">
+                            {{ item.mat_hangs.count }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'admin_danhmuc_update' item.id %}" class="btn btn-primary">Sửa</a>
+                        <a href="{% url 'admin_danhmuc_delete' item.id %}" class="btn btn-danger"
+                            onclick="return confirm('Bạn có chắc muốn xóa danh mục này? LƯU Ý: Các mặt hàng thuộc danh mục này sẽ bị mồ côi (trống danh mục).')">Xóa</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center;">Chưa có dữ liệu</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'admin/pagination.html' %}
+</div>
+{% endblock %}

@@ -4,43 +4,204 @@
 {% block title %}Quản Lý Tồn Kho{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h1>Danh Sách Tồn Kho</h1>
+<style>
+    .tk-stats {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
 
-    <div style="display:flex; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-        <a href="{% url 'admin_tonkho_create' %}" class="btn btn-success">Thêm / Nhập Kho</a>
+    .tk-stat-card {
+        flex: 1;
+        min-width: 140px;
+        padding: 18px 15px;
+        border-radius: 10px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .tk-stat-card h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #ffffff !important;
+        margin-bottom: 6px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .tk-stat-card .tk-num {
+        font-size: 1.8rem;
+        font-weight: 800;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .tk-chart-wrap {
+        max-width: 320px;
+        margin: 0 auto 25px;
+    }
+
+    .tk-toolbar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .tk-filter {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .tk-filter form {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 0;
+    }
+
+    .tk-filter .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .tk-filter label {
+        font-weight: 600;
+        font-size: 13px;
+        color: #4a5568;
+    }
+
+    .tk-filter select,
+    .tk-filter input[type="text"] {
+        padding: 8px 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 6px;
+    }
+
+    .tk-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tk-table-wrap table {
+        width: 100%;
+    }
+
+    tr.row-het-hang {
+        background: #fff5f5 !important;
+    }
+
+    tr.row-sap-het {
+        background: #fffff0 !important;
+    }
+
+    tr.row-het-hang td:first-child {
+        border-left: 3px solid #e53e3e;
+    }
+
+    tr.row-sap-het td:first-child {
+        border-left: 3px solid #ecc94b;
+    }
+
+    @media (max-width: 768px) {
+        .tk-stats {
+            flex-direction: column;
+        }
+
+        .tk-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .tk-filter form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .tk-filter select,
+        .tk-filter input[type="text"] {
+            width: 100%;
+        }
+
+        .tk-chart-wrap {
+            max-width: 100%;
+        }
+    }
+</style>
+
+<div class="card">
+    <h1>📦 Quản Lý Tồn Kho</h1>
+
+    <!-- Dashboard Stats -->
+    <div class="tk-stats">
+        <div class="tk-stat-card" style="background:linear-gradient(135deg,#667eea,#764ba2);">
+            <h3>Tổng Mặt Hàng</h3>
+            <div class="tk-num">{{ tong_mat_hang }}</div>
+        </div>
+        <div class="tk-stat-card" style="background:linear-gradient(135deg,#e53e3e,#c53030);">
+            <h3>🔴 Hết Hàng</h3>
+            <div class="tk-num">{{ het_hang }}</div>
+        </div>
+        <div class="tk-stat-card" style="background:linear-gradient(135deg,#ecc94b,#d69e2e);">
+            <h3>🟡 Sắp Hết</h3>
+            <div class="tk-num">{{ sap_het }}</div>
+        </div>
+        <div class="tk-stat-card" style="background:linear-gradient(135deg,#38a169,#2f855a);">
+            <h3>🟢 Còn Hàng</h3>
+            <div class="tk-num">{{ con_hang }}</div>
+        </div>
+    </div>
+
+    <!-- Pie Chart -->
+    {% if tong_mat_hang > 0 %}
+    <div class="tk-chart-wrap">
+        <canvas id="chartTonKho" height="260"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Toolbar -->
+    <div class="tk-toolbar">
+        <a href="{% url 'admin_tonkho_create' %}" class="btn btn-success"> Thêm / Nhập Kho</a>
 
         <form method="post" action="{% url 'admin_tonkho_import_excel' %}" enctype="multipart/form-data"
             style="display:flex; gap:6px; align-items:center; margin:0;" id="form-import-excel">
             {% csrf_token %}
             <label for="excel_file" class="btn btn-primary"
-                style="background:#2b6cb0; border-color:#2b6cb0; cursor:pointer; margin:0; padding:6px 14px; display:inline-flex; align-items:center; gap:4px; border-radius: 4px;">
+                style="background:#2b6cb0; border-color:#2b6cb0; cursor:pointer; margin:0; padding:6px 14px; display:inline-flex; align-items:center; gap:4px; border-radius:4px;">
                 📥 Nhập từ Excel
             </label>
             <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" style="display:none;"
                 onchange="document.getElementById('form-import-excel').submit();">
         </form>
 
+        <a href="{% url 'admin_tonkho_export_excel' %}" class="btn btn-success"
+            style="background:#38a169; border-color:#38a169;">📤 Xuất Excel</a>
+
+        <a href="{% url 'admin_lichsu_kho' %}" class="btn btn-secondary">📋 Lịch sử kho</a>
+
         <a href="{% static 'tonkho_mau.xlsx' %}" download class="btn btn-secondary"
-            style="background: transparent; color: #2b6cb0; border: none; text-decoration: underline; padding: 6px; box-shadow: none;">
+            style="background:transparent; color:#2b6cb0; border:none; text-decoration:underline; padding:6px; box-shadow:none;">
             🔽 Tải file mẫu
         </a>
     </div>
 
-    <!-- Form loc va tim kiem -->
-    <div style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0;">
-        <form method="get" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap; margin:0;">
-            <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-weight:600; font-size:13px; color:#4a5568;">Tìm kiếm</label>
-                <input type="text" name="q" value="{{ q }}" class="search-box"
-                    placeholder="🔍 Tên mặt hàng, cửa hàng..."
-                    style="padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px; width:220px;">
+    <!-- Filter -->
+    <div class="tk-filter">
+        <form method="get">
+            <div class="field">
+                <label>Tìm kiếm</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="🔍 Tên mặt hàng, cửa hàng..."
+                    style="width:220px;">
             </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-                <label for="cua_hang" style="font-weight:600; font-size:13px; color:#4a5568;">Lọc cửa hàng</label>
-                <select name="cua_hang" id="cua_hang" onchange="this.form.submit()"
-                    style="padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px;">
+            <div class="field">
+                <label for="cua_hang">Lọc cửa hàng</label>
+                <select name="cua_hang" id="cua_hang" onchange="this.form.submit()">
                     <option value="">Tất cả cửa hàng</option>
                     {% for ch in cua_hangs %}
                     <option value="{{ ch.id }}" {% if cua_hang_id == ch.id|stringformat:"d" %}selected{% endif %}>
@@ -49,18 +210,16 @@
                     {% endfor %}
                 </select>
             </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-                <label for="trang_thai" style="font-weight:600; font-size:13px; color:#4a5568;">Trạng thái</label>
-                <select name="trang_thai" id="trang_thai" onchange="this.form.submit()"
-                    style="padding:8px 12px; border:1px solid #cbd5e0; border-radius:6px;">
+            <div class="field">
+                <label for="trang_thai">Trạng thái</label>
+                <select name="trang_thai" id="trang_thai" onchange="this.form.submit()">
                     <option value="">Tất cả</option>
                     <option value="het_hang" {% if trang_thai == 'het_hang' %}selected{% endif %}>Hết hàng</option>
                     <option value="sap_het" {% if trang_thai == 'sap_het' %}selected{% endif %}>Sắp hết (&lt;10)</option>
-                    <option value="con_hang" {% if trang_thai == 'con_hang' %}selected{% endif %}>Còn hàng (>=10)</option>
+                    <option value="con_hang" {% if trang_thai == 'con_hang' %}selected{% endif %}>Còn hàng (&gt;=10)
+                    </option>
                 </select>
             </div>
-
             <div style="display:flex; align-items:flex-end; padding-bottom:1px; margin-top:20px;">
                 <button type="submit" style="display:none;">Search</button>
                 <a href="{% url 'admin_tonkho_list' %}" class="btn btn-secondary" style="padding:8px 16px;">Xóa lọc</a>
@@ -68,75 +227,116 @@
         </form>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Cửa Hàng</th>
-                <th>Mặt Hàng</th>
-                <th>Số Lượng</th>
-                <th>Giá Bán</th>
-                <th>Trạng Thái</th>
-                <th>Hành Động</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <td>{{ item.id }}</td>
-                <td>{{ item.cua_hang.ten_cua_hang }}</td>
-                <td>{{ item.mat_hang.ten_mat_hang }}</td>
-                <td>{{ item.so_luong }}</td>
-                <td>{{ item.mat_hang.gia_ban|floatformat:0 }} đ</td>
-                <td>
-                    {% if item.so_luong == 0 %}
-                    <span style="color:red; font-weight:bold;">Hết hàng</span>
-                    {% elif item.so_luong < 10 %} <span style="color:orange; font-weight:bold;">Sắp hết</span>
-                        {% else %}
-                        <span style="color:green;">Còn hàng</span>
-                        {% endif %}
-                </td>
-                <td>
-                    <a href="{% url 'admin_tonkho_update' item.id %}" class="btn btn-primary">Sửa</a>
-                    <a href="{% url 'admin_tonkho_delete' item.id %}" class="btn btn-danger"
-                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="7" style="text-align: center;">Chưa có dữ liệu</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Table -->
+    <div class="tk-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cửa Hàng</th>
+                    <th>Mặt Hàng</th>
+                    <th>Số Lượng</th>
+                    <th>Giá Bán</th>
+                    <th>Trạng Thái</th>
+                    <th>Hành Động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="{% if item.so_luong == 0 %}row-het-hang{% elif item.so_luong < 10 %}row-sap-het{% endif %}">
+                    <td>{{ item.id }}</td>
+                    <td>{{ item.cua_hang.ten_cua_hang }}</td>
+                    <td>{{ item.mat_hang.ten_mat_hang }}</td>
+                    <td>
+                        <strong>{{ item.so_luong }}</strong>
+                        {% if item.so_luong == 0 %}
+                        <span
+                            style="background:#fed7d7;color:#c53030;padding:2px 6px;border-radius:4px;font-size:0.75rem;margin-left:4px;">HẾT</span>
+                        {% elif item.so_luong < 10 %} <span
+                            style="background:#fefcbf;color:#975a16;padding:2px 6px;border-radius:4px;font-size:0.75rem;margin-left:4px;">
+                            SẮP HẾT</span>
+                            {% endif %}
+                    </td>
+                    <td>{{ item.mat_hang.gia_ban|floatformat:0 }} đ</td>
+                    <td>
+                        {% if item.so_luong == 0 %}
+                        <span style="color:red; font-weight:bold;">Hết hàng</span>
+                        {% elif item.so_luong < 10 %} <span style="color:orange; font-weight:bold;">Sắp hết</span>
+                            {% else %}
+                            <span style="color:green;">Còn hàng</span>
+                            {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'admin_tonkho_update' item.id %}" class="btn btn-primary">Sửa</a>
+                        <a href="{% url 'admin_tonkho_delete' item.id %}" class="btn btn-danger"
+                            onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center;">Chưa có dữ liệu</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% include 'admin/pagination.html' %}
 
     <h2 style="margin-top:20px;">Gợi Ý Nhập Hàng (7/30 ngày)</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Cửa hàng</th>
-                <th>Mặt hàng</th>
-                <th>Tồn hiện tại</th>
-                <th>Bán TB/ngày</th>
-                <th>Đề xuất nhập</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for g in goi_y_nhap %}
-            <tr>
-                <td>{{ g.cua_hang }}</td>
-                <td>{{ g.mat_hang }}</td>
-                <td>{{ g.ton_hien_tai }}</td>
-                <td>{{ g.ban_tb_ngay }}</td>
-                <td style="font-weight:700; color:#2b6cb0;">{{ g.de_xuat_nhap }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" style="text-align:center;">Chưa có gợi ý nhập hàng</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="tk-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Cửa hàng</th>
+                    <th>Mặt hàng</th>
+                    <th>Tồn hiện tại</th>
+                    <th>Bán TB/ngày</th>
+                    <th>Đề xuất nhập</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in goi_y_nhap %}
+                <tr>
+                    <td>{{ g.cua_hang }}</td>
+                    <td>{{ g.mat_hang }}</td>
+                    <td>{{ g.ton_hien_tai }}</td>
+                    <td>{{ g.ban_tb_ngay }}</td>
+                    <td style="font-weight:700; color:#2b6cb0;">{{ g.de_xuat_nhap }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center;">Chưa có gợi ý nhập hàng</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+{% if tong_mat_hang > 0 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new Chart(document.getElementById('chartTonKho'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Hết hàng', 'Sắp hết (<10)', 'Còn hàng (≥10)'],
+                datasets: [{
+                    data: [{{ het_hang }}, {{ sap_het }}, {{ con_hang }}],
+        backgroundColor: ['#e53e3e', '#ecc94b', '#38a169'],
+        borderWidth: 2,
+        borderColor: '#fff'
+            }]
+        },
+        options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 15, font: { size: 13 } } },
+            title: { display: true, text: 'Phân bổ trạng thái tồn kho', font: { size: 15 } }
+        }
+    }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

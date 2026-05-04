@@ -1,0 +1,160 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Lịch Sử Kho{% endblock %}
+
+{% block content %}
+<style>
+    .lsk-filter {
+        background: #f8f9fa;
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .lsk-filter label {
+        font-weight: 600;
+        font-size: 13px;
+        color: #4a5568;
+    }
+
+    .lsk-filter select {
+        padding: 7px 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 6px;
+    }
+
+    .lsk-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .lsk-table-wrap table {
+        width: 100%;
+    }
+
+    .lsk-badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .lsk-nhap {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+
+    .lsk-xuat {
+        background: #fed7d7;
+        color: #742a2a;
+    }
+
+    .lsk-cap_nhat {
+        background: #bee3f8;
+        color: #2a4365;
+    }
+
+    .lsk-import {
+        background: #e9d8fd;
+        color: #44337a;
+    }
+
+    .lsk-change-pos {
+        color: #38a169;
+        font-weight: 700;
+    }
+
+    .lsk-change-neg {
+        color: #e53e3e;
+        font-weight: 700;
+    }
+
+    .lsk-change-zero {
+        color: #718096;
+    }
+
+    @media (max-width: 768px) {
+        .lsk-filter {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+
+<div class="card">
+    <div
+        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+        <h1 style="margin:0;">📋 Lịch Sử Kho</h1>
+        <a href="{% url 'admin_tonkho_list' %}" class="btn btn-secondary">← Quay lại Tồn Kho</a>
+    </div>
+
+    <!-- Filter -->
+    <div class="lsk-filter">
+        <label>Lọc loại:</label>
+        <select onchange="window.location='?loai='+this.value">
+            <option value="">Tất cả</option>
+            <option value="nhap" {% if loai_filter == 'nhap' %}selected{% endif %}>Nhập kho</option>
+            <option value="xuat" {% if loai_filter == 'xuat' %}selected{% endif %}>Xuất kho</option>
+            <option value="cap_nhat" {% if loai_filter == 'cap_nhat' %}selected{% endif %}>Cập nhật</option>
+            <option value="import" {% if loai_filter == 'import' %}selected{% endif %}>Nhập từ Excel</option>
+        </select>
+        {% if loai_filter %}
+        <a href="{% url 'admin_lichsu_kho' %}" style="color:#667eea; text-decoration:none; font-size:0.9rem;">✕ Xóa
+            lọc</a>
+        {% endif %}
+    </div>
+
+    <!-- Table -->
+    <div class="lsk-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Người thực hiện</th>
+                    <th>Cửa Hàng</th>
+                    <th>Mặt Hàng</th>
+                    <th>Loại</th>
+                    <th>SL Trước</th>
+                    <th>Thay đổi</th>
+                    <th>SL Sau</th>
+                    <th>Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td style="white-space:nowrap;">{{ item.thoi_gian|date:"d/m/Y H:i" }}</td>
+                    <td>{{ item.nguoi_thuc_hien.username|default:"—" }}</td>
+                    <td>{{ item.ton_kho.cua_hang.ten_cua_hang }}</td>
+                    <td>{{ item.ton_kho.mat_hang.ten_mat_hang }}</td>
+                    <td><span class="lsk-badge lsk-{{ item.loai }}">{{ item.get_loai_display }}</span></td>
+                    <td>{{ item.so_luong_truoc }}</td>
+                    <td>
+                        {% if item.so_luong_thay_doi > 0 %}
+                        <span class="lsk-change-pos">+{{ item.so_luong_thay_doi }}</span>
+                        {% elif item.so_luong_thay_doi < 0 %} <span class="lsk-change-neg">{{ item.so_luong_thay_doi }}</span>
+                            {% else %}
+                            <span class="lsk-change-zero">0</span>
+                            {% endif %}
+                    </td>
+                    <td><strong>{{ item.so_luong_sau }}</strong></td>
+                    <td style="font-size:0.85rem; color:#718096;">{{ item.ghi_chu|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align:center; padding:30px; color:#999;">Chưa có lịch sử thay đổi kho
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'admin/pagination.html' %}
+</div>
+{% endblock %}

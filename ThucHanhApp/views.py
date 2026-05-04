@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.gis.geos import Point
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import LoaiCuaHang, CuaHang, DanhGia, DanhGiaLike, DanhGiaAnh, SuKien, CuaHangSuKien, MatHang, TonKho, DonHang, ChiTietDonHang, AuditLog, AdminThongBao, GioHang, ChiTietGioHang
+from .models import LoaiCuaHang, CuaHang, DanhGia, DanhGiaLike, DanhGiaAnh, SuKien, CuaHangSuKien, DanhMuc, MatHang, TonKho, LichSuKho, DonHang, ChiTietDonHang, AuditLog, AdminThongBao, GioHang, ChiTietGioHang
 from django.contrib.auth.models import User
 from .utils.gis_tools import CongCuGIS, khoang_cach_km
 from functools import wraps
@@ -977,37 +977,68 @@ def admin_audit_log(request):
             logs = logs.filter(thoi_gian__date__lte=den)
         except ValueError:
             pass
+    hanh_dong_val = request.GET.get('hanh_dong', '').strip()
+    if hanh_dong_val:
+        logs = logs.filter(hanh_dong=hanh_dong_val)
     if q:
         logs = logs.filter(mo_ta__icontains=q)
     modules = AuditLog.objects.values_list('module', flat=True).distinct().order_by('module')
     users = User.objects.filter(audit_logs__isnull=False).distinct().order_by('username')
+    hanh_dong_choices = [
+        ('create', 'Tạo mới'), ('update', 'Cập nhật'), ('delete', 'Xóa'),
+        ('import', 'Nhập dữ liệu'), ('export', 'Xuất dữ liệu'), ('view', 'Xem'),
+    ]
+
+    # Stats badges
+    all_logs = AuditLog.objects.all()
+    tong_log = all_logs.count()
+    tong_import = all_logs.filter(hanh_dong='import').count()
+    tong_update = all_logs.filter(hanh_dong='update').count()
+    tong_delete = all_logs.filter(hanh_dong='delete').count()
+
     page_obj, logs = phan_trang_queryset(request, logs, per_page=20)
     for log in logs:
         before = log.du_lieu_truoc or {}
         after = log.du_lieu_sau or {}
-        if not isinstance(before, dict):
-            before = {}
-        if not isinstance(after, dict):
-            after = {}
-        keys = sorted(set(before.keys()) | set(after.keys()))
-        log.diff_rows = []
-        for key in keys:
-            truoc = before.get(key, None)
-            sau = after.get(key, None)
-            if truoc != sau:
+        # Handle list-type diffs (from Excel imports)
+        if isinstance(after, list):
+            log.diff_rows = []
+            for row in after:
                 log.diff_rows.append({
-                    'key': key,
-                    'truoc': '-' if truoc in [None, ''] else truoc,
-                    'sau': '-' if sau in [None, ''] else sau,
+                    'key': row.get('field', ''),
+                    'truoc': row.get('old', '-'),
+                    'sau': row.get('new', '-'),
                 })
+        else:
+            if not isinstance(before, dict):
+                before = {}
+            if not isinstance(after, dict):
+                after = {}
+            keys = sorted(set(before.keys()) | set(after.keys()))
+            log.diff_rows = []
+            for key in keys:
+                truoc = before.get(key, None)
+                sau = after.get(key, None)
+                if truoc != sau:
+                    log.diff_rows.append({
+                        'key': key,
+                        'truoc': '-' if truoc in [None, ''] else truoc,
+                        'sau': '-' if sau in [None, ''] else sau,
+                    })
     return render(request, 'admin/audit_log.html', {
         'logs': logs,
         'page_obj': page_obj,
         'modules': modules,
         'users': users,
+        'hanh_dong_choices': hanh_dong_choices,
+        'tong_log': tong_log,
+        'tong_import': tong_import,
+        'tong_update': tong_update,
+        'tong_delete': tong_delete,
         'loc': {
             'q': q,
             'module': module,
+            'hanh_dong': hanh_dong_val,
             'user_id': user_id,
             'tu_ngay': tu_ngay,
             'den_ngay': den_ngay,
@@ -1744,55 +1775,123 @@ def admin_cuahang_sukien_delete(request, id):
     return redirect('admin_cuahang_sukien_list')
 
 
+# ====== ADMIN CRUD: DANH MỤC (PHÂN LOẠI MẶT HÀNG) ======
+
+@admin_required
+def admin_danhmuc_list(request):
+    ds = DanhMuc.objects.all().order_by('id')
+    q = request.GET.get('q', '').strip()
+    if q:
+        from django.db.models import Q
+        ds = ds.filter(Q(ten_danh_muc__icontains=q) | Q(mo_ta__icontains=q))
+    page_obj, items = phan_trang_queryset(request, ds, per_page=10)
+    return render(request, 'admin/danhmuc_list.html', {'items': items, 'page_obj': page_obj, 'q': q})
+
+@admin_required
+def admin_danhmuc_create(request):
+    if request.method == 'POST':
+        DanhMuc.objects.create(
+            ten_danh_muc=request.POST.get('ten_danh_muc'),
+            mo_ta=request.POST.get('mo_ta', '')
+        )
+        messages.success(request, 'Thêm danh mục thành công!')
+        return redirect('admin_danhmuc_list')
+    return render(request, 'admin/danhmuc_form.html')
+
+@admin_required
+def admin_danhmuc_update(request, id):
+    dm = get_object_or_404(DanhMuc, id=id)
+    if request.method == 'POST':
+        dm.ten_danh_muc = request.POST.get('ten_danh_muc')
+        dm.mo_ta = request.POST.get('mo_ta', '')
+        dm.save()
+        messages.success(request, 'Cập nhật danh mục thành công!')
+        return redirect('admin_danhmuc_list')
+    return render(request, 'admin/danhmuc_form.html', {'item': dm})
+
+@admin_required
+def admin_danhmuc_delete(request, id):
+    dm = get_object_or_404(DanhMuc, id=id)
+    dm.delete()
+    messages.success(request, 'Xóa danh mục thành công!')
+    return redirect('admin_danhmuc_list')
+
+
 # ====== ADMIN CRUD: MAT HANG ======
 
 @admin_required
 def admin_mathang_list(request):
-    ds = MatHang.objects.all().order_by('id')
+    ds = MatHang.objects.select_related('danh_muc').all().order_by('id')
     
     q = request.GET.get('q', '').strip()
+    danh_muc_filter = request.GET.get('danh_muc', '')
+    don_vi_filter = request.GET.get('don_vi', '')
+
     if q:
         from django.db.models import Q
         ds = ds.filter(
             Q(ten_mat_hang__icontains=q) | 
             Q(mo_ta__icontains=q)
         )
-        
+    if danh_muc_filter:
+        ds = ds.filter(danh_muc_id=danh_muc_filter)
+    if don_vi_filter:
+        ds = ds.filter(don_vi=don_vi_filter)
+
+    # Dashboard Cards
+    from django.db.models import Avg
+    tong_mat_hang = ds.count()
+    chua_co_gia = ds.filter(gia_ban=0).count()
+    gia_tb = ds.filter(gia_ban__gt=0).aggregate(Avg('gia_ban'))['gia_ban__avg'] or 0
+
     page_obj, items = phan_trang_queryset(request, ds, per_page=10)
     return render(request, 'admin/mathang_list.html', {
         'items': items, 
         'page_obj': page_obj,
-        'q': q
+        'q': q,
+        'danh_muc_filter': danh_muc_filter,
+        'don_vi_filter': don_vi_filter,
+        'ds_danh_muc': DanhMuc.objects.all(),
+        'ds_don_vi': MatHang.objects.values_list('don_vi', flat=True).distinct(),
+        'tong_mat_hang': tong_mat_hang,
+        'chua_co_gia': chua_co_gia,
+        'gia_tb': gia_tb
     })
-
 
 @admin_required
 def admin_mathang_create(request):
     if request.method == 'POST':
+        danh_muc_id = request.POST.get('danh_muc_id')
         MatHang.objects.create(
             ten_mat_hang=request.POST.get('ten_mat_hang'),
+            danh_muc_id=danh_muc_id if danh_muc_id else None,
             don_vi=request.POST.get('don_vi', 'cái'),
             gia_ban=request.POST.get('gia_ban', 0),
             mo_ta=request.POST.get('mo_ta', ''),
         )
         messages.success(request, 'Thêm mặt hàng thành công!')
         return redirect('admin_mathang_list')
-    return render(request, 'admin/mathang_form.html')
-
+    return render(request, 'admin/mathang_form.html', {
+        'danh_mucs': DanhMuc.objects.all(),
+    })
 
 @admin_required
 def admin_mathang_update(request, id):
     muc = get_object_or_404(MatHang, id=id)
     if request.method == 'POST':
+        danh_muc_id = request.POST.get('danh_muc_id')
         muc.ten_mat_hang = request.POST.get('ten_mat_hang')
+        muc.danh_muc_id = danh_muc_id if danh_muc_id else None
         muc.don_vi = request.POST.get('don_vi', 'cái')
         muc.gia_ban = request.POST.get('gia_ban', 0)
         muc.mo_ta = request.POST.get('mo_ta', '')
         muc.save()
         messages.success(request, 'Cập nhật thành công!')
         return redirect('admin_mathang_list')
-    return render(request, 'admin/mathang_form.html', {'item': muc})
-
+    return render(request, 'admin/mathang_form.html', {
+        'item': muc,
+        'danh_mucs': DanhMuc.objects.all(),
+    })
 
 @admin_required
 def admin_mathang_delete(request, id):
@@ -1801,8 +1900,234 @@ def admin_mathang_delete(request, id):
     messages.success(request, 'Xóa thành công!')
     return redirect('admin_mathang_list')
 
+@admin_required
+def admin_mathang_export_excel(request):
+    import io
+    import pandas as pd
+    from django.http import HttpResponse
+
+    ds = MatHang.objects.select_related('danh_muc').all().order_by('id')
+    data = []
+    for m in ds:
+        data.append({
+            'ID': m.id,
+            'Tên Mặt Hàng': m.ten_mat_hang,
+            'Danh Mục': m.danh_muc.ten_danh_muc if m.danh_muc else '',
+            'Đơn Vị': m.don_vi,
+            'Giá Bán': m.gia_ban,
+            'Mô Tả': m.mo_ta
+        })
+    df = pd.DataFrame(data)
+    
+    excel_file = io.BytesIO()
+    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='DS_MatHang')
+    
+    excel_file.seek(0)
+    response = HttpResponse(excel_file.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="danh_sach_mat_hang.xlsx"'
+    return response
+
 
 # ====== ADMIN CRUD: TỒN KHO ======
+
+@admin_required
+def admin_tonkho_export_excel(request):
+    import io, pandas as pd
+    from django.http import HttpResponse
+
+    ds = TonKho.objects.select_related('cua_hang', 'mat_hang').all().order_by('id')
+    data = []
+    for item in ds:
+        data.append({
+            'Cửa Hàng': item.cua_hang.ten_cua_hang if item.cua_hang else '',
+            'Mặt Hàng': item.mat_hang.ten_mat_hang if item.mat_hang else '',
+            'Số Lượng': item.so_luong,
+        })
+    df = pd.DataFrame(data)
+    excel_file = io.BytesIO()
+    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='TonKho')
+    
+    excel_file.seek(0)
+    response = HttpResponse(excel_file.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="ton_kho.xlsx"'
+    return response
+
+@admin_required
+def admin_tonkho_list(request):
+    from django.db.models import Sum
+    from django.utils import timezone
+    from datetime import timedelta
+    import math
+
+    items = TonKho.objects.select_related('cua_hang', 'mat_hang').all().order_by('id')
+    cua_hang_id = request.GET.get('cua_hang', '')
+    trang_thai = request.GET.get('trang_thai', '').strip()
+    q = request.GET.get('q', '').strip()
+
+    if q:
+        from django.db.models import Q
+        items = items.filter(
+            Q(mat_hang__ten_mat_hang__icontains=q) | 
+            Q(cua_hang__ten_cua_hang__icontains=q)
+        )
+
+    if cua_hang_id:
+        items = items.filter(cua_hang_id=int(cua_hang_id))
+    if trang_thai == 'het_hang':
+        items = items.filter(so_luong=0)
+    elif trang_thai == 'sap_het':
+        items = items.filter(so_luong__gt=0, so_luong__lt=10)
+    elif trang_thai == 'con_hang':
+        items = items.filter(so_luong__gte=10)
+    cua_hangs = CuaHang.objects.all()
+
+    hom_nay = timezone.localdate()
+    moc_7 = hom_nay - timedelta(days=7)
+    moc_30 = hom_nay - timedelta(days=30)
+    ds_7 = ChiTietDonHang.objects.filter(
+        don_hang__trang_thai='da_thanh_toan',
+        don_hang__ngay_dat__date__gte=moc_7
+    ).values('don_hang__cua_hang_id', 'mat_hang_id').annotate(tong=Sum('so_luong'))
+    ds_30 = ChiTietDonHang.objects.filter(
+        don_hang__trang_thai='da_thanh_toan',
+        don_hang__ngay_dat__date__gte=moc_30
+    ).values('don_hang__cua_hang_id', 'mat_hang_id').annotate(tong=Sum('so_luong'))
+    ban_7 = {(d['don_hang__cua_hang_id'], d['mat_hang_id']): d['tong'] or 0 for d in ds_7}
+    ban_30 = {(d['don_hang__cua_hang_id'], d['mat_hang_id']): d['tong'] or 0 for d in ds_30}
+
+    goi_y_nhap = []
+    for tk in TonKho.objects.select_related('cua_hang', 'mat_hang').all():
+        key = (tk.cua_hang_id, tk.mat_hang_id)
+        avg7 = (ban_7.get(key, 0) / 7.0)
+        avg30 = (ban_30.get(key, 0) / 30.0)
+        toc_do = max(avg7, avg30)
+        de_xuat = max(0, int(math.ceil(toc_do * 7 - tk.so_luong)))
+        if de_xuat > 0:
+            goi_y_nhap.append({
+                'cua_hang': tk.cua_hang.ten_cua_hang,
+                'mat_hang': tk.mat_hang.ten_mat_hang,
+                'ton_hien_tai': tk.so_luong,
+                'ban_tb_ngay': round(toc_do, 2),
+                'de_xuat_nhap': de_xuat,
+            })
+    goi_y_nhap = sorted(goi_y_nhap, key=lambda x: x['de_xuat_nhap'], reverse=True)[:20]
+
+    # Dashboard stats
+    all_tk = TonKho.objects.all()
+    tong_mat_hang = all_tk.count()
+    het_hang = all_tk.filter(so_luong=0).count()
+    sap_het = all_tk.filter(so_luong__gt=0, so_luong__lt=10).count()
+    con_hang = all_tk.filter(so_luong__gte=10).count()
+
+    page_obj, page_items = phan_trang_queryset(request, items, per_page=10)
+    return render(request, 'admin/tonkho_list.html', {
+        'items': page_items,
+        'page_obj': page_obj,
+        'cua_hangs': cua_hangs,
+        'cua_hang_id': cua_hang_id,
+        'trang_thai': trang_thai,
+        'q': q,
+        'goi_y_nhap': goi_y_nhap,
+        'tong_mat_hang': tong_mat_hang,
+        'het_hang': het_hang,
+        'sap_het': sap_het,
+        'con_hang': con_hang,
+    })
+
+@admin_required
+def admin_tonkho_create(request):
+    if request.method == 'POST':
+        cua_hang_id = request.POST.get('cua_hang_id')
+        mat_hang_id = request.POST.get('mat_hang_id')
+        so_luong = int(request.POST.get('so_luong', 0))
+        tk, created = TonKho.objects.get_or_create(
+            cua_hang_id=cua_hang_id,
+            mat_hang_id=mat_hang_id,
+            defaults={'so_luong': so_luong}
+        )
+        old_sl = 0 if created else (tk.so_luong - so_luong)
+        if not created:
+            tk.so_luong += so_luong
+            tk.save()
+        
+        LichSuKho.objects.create(
+            ton_kho=tk,
+            nguoi_thuc_hien=request.user,
+            so_luong_truoc=old_sl,
+            so_luong_sau=tk.so_luong,
+            so_luong_thay_doi=so_luong,
+            loai='nhap',
+            ghi_chu='Nhập kho ban đầu/Bổ sung'
+        )
+        ghi_nhat_ky(
+            request,
+            module='Tồn kho',
+            hanh_dong='create' if created else 'update',
+            mo_ta=f"{'Tạo' if created else 'Cập nhật'} tồn kho {tk.mat_hang.ten_mat_hang} tại {tk.cua_hang.ten_cua_hang}, SL={so_luong}",
+            doi_tuong='TonKho',
+            doi_tuong_id=tk.id,
+            du_lieu_truoc={'số lượng': old_sl},
+            du_lieu_sau={'số lượng': tk.so_luong}
+        )
+        messages.success(request, 'Thêm tồn kho thành công!')
+        return redirect('admin_tonkho_list')
+    return render(request, 'admin/tonkho_form.html', {
+        'cua_hangs': CuaHang.objects.all(),
+        'mat_hangs': MatHang.objects.all()
+    })
+
+@admin_required
+def admin_tonkho_update(request, id):
+    tk = get_object_or_404(TonKho, id=id)
+    if request.method == 'POST':
+        so_luong_moi = int(request.POST.get('so_luong', 0))
+        old_sl = tk.so_luong
+        chenh_lech = so_luong_moi - old_sl
+        if chenh_lech != 0:
+            LichSuKho.objects.create(
+                ton_kho=tk,
+                nguoi_thuc_hien=request.user,
+                so_luong_truoc=old_sl,
+                so_luong_sau=so_luong_moi,
+                so_luong_thay_doi=chenh_lech,
+                loai='cap_nhat',
+                ghi_chu='Chỉnh sửa thủ công Tồn Kho'
+            )
+            tk.so_luong = so_luong_moi
+            tk.save()
+        ghi_nhat_ky(
+            request,
+            module='Tồn kho',
+            hanh_dong='update',
+            mo_ta=f"Cập nhật tồn kho {tk.mat_hang.ten_mat_hang} tại {tk.cua_hang.ten_cua_hang}",
+            doi_tuong='TonKho',
+            doi_tuong_id=tk.id,
+            du_lieu_truoc={'cửa hàng': tk.cua_hang.ten_cua_hang, 'mặt hàng': tk.mat_hang.ten_mat_hang, 'số lượng': old_sl},
+            du_lieu_sau={'cửa hàng': tk.cua_hang.ten_cua_hang, 'mặt hàng': tk.mat_hang.ten_mat_hang, 'số lượng': so_luong_moi}
+        )
+        messages.success(request, 'Cập nhật tồn kho thành công!')
+        return redirect('admin_tonkho_list')
+    return render(request, 'admin/tonkho_form.html', {
+        'item': tk,
+        'cua_hangs': CuaHang.objects.all(),
+        'mat_hangs': MatHang.objects.all()
+    })
+
+@admin_required
+def admin_tonkho_delete(request, id):
+    tk = get_object_or_404(TonKho, id=id)
+    tk.delete()
+    messages.success(request, 'Xóa tồn kho thành công!')
+    return redirect('admin_tonkho_list')
+
+@admin_required
+def admin_lichsu_kho(request):
+    ds = LichSuKho.objects.select_related('ton_kho__cua_hang', 'ton_kho__mat_hang', 'nguoi_thuc_hien').all().order_by('-thoi_gian')
+    page_obj, items = phan_trang_queryset(request, ds, per_page=15)
+    return render(request, 'admin/lichsu_kho.html', {'items': items, 'page_obj': page_obj})
+
 
 @admin_required
 def admin_mathang_import_excel(request):
@@ -1894,157 +2219,6 @@ def admin_mathang_import_excel(request):
     return redirect('admin_mathang_list')
 
 
-# ====== ADMIN CRUD: TON KHO ======
-
-@admin_required
-def admin_tonkho_list(request):
-    from django.db.models import Sum
-    from django.utils import timezone
-    from datetime import timedelta
-
-    items = TonKho.objects.select_related('cua_hang', 'mat_hang').all().order_by('id')
-    cua_hang_id = request.GET.get('cua_hang', '')
-    trang_thai = request.GET.get('trang_thai', '').strip()
-    q = request.GET.get('q', '').strip()
-
-    if q:
-        from django.db.models import Q
-        items = items.filter(
-            Q(mat_hang__ten_mat_hang__icontains=q) | 
-            Q(cua_hang__ten_cua_hang__icontains=q)
-        )
-
-    if cua_hang_id:
-        items = items.filter(cua_hang_id=int(cua_hang_id))
-    if trang_thai == 'het_hang':
-        items = items.filter(so_luong=0)
-    elif trang_thai == 'sap_het':
-        items = items.filter(so_luong__gt=0, so_luong__lt=10)
-    elif trang_thai == 'con_hang':
-        items = items.filter(so_luong__gte=10)
-    cua_hangs = CuaHang.objects.all()
-
-    hom_nay = timezone.localdate()
-    moc_7 = hom_nay - timedelta(days=7)
-    moc_30 = hom_nay - timedelta(days=30)
-    ds_7 = ChiTietDonHang.objects.filter(
-        don_hang__trang_thai='da_thanh_toan',
-        don_hang__ngay_dat__date__gte=moc_7
-    ).values('don_hang__cua_hang_id', 'mat_hang_id').annotate(tong=Sum('so_luong'))
-    ds_30 = ChiTietDonHang.objects.filter(
-        don_hang__trang_thai='da_thanh_toan',
-        don_hang__ngay_dat__date__gte=moc_30
-    ).values('don_hang__cua_hang_id', 'mat_hang_id').annotate(tong=Sum('so_luong'))
-    ban_7 = {(d['don_hang__cua_hang_id'], d['mat_hang_id']): d['tong'] or 0 for d in ds_7}
-    ban_30 = {(d['don_hang__cua_hang_id'], d['mat_hang_id']): d['tong'] or 0 for d in ds_30}
-
-    goi_y_nhap = []
-    for tk in TonKho.objects.select_related('cua_hang', 'mat_hang').all():
-        key = (tk.cua_hang_id, tk.mat_hang_id)
-        avg7 = (ban_7.get(key, 0) / 7.0)
-        avg30 = (ban_30.get(key, 0) / 30.0)
-        toc_do = max(avg7, avg30)
-        de_xuat = max(0, int(math.ceil(toc_do * 7 - tk.so_luong)))
-        if de_xuat > 0:
-            goi_y_nhap.append({
-                'cua_hang': tk.cua_hang.ten_cua_hang,
-                'mat_hang': tk.mat_hang.ten_mat_hang,
-                'ton_hien_tai': tk.so_luong,
-                'ban_tb_ngay': round(toc_do, 2),
-                'de_xuat_nhap': de_xuat,
-            })
-    goi_y_nhap = sorted(goi_y_nhap, key=lambda x: x['de_xuat_nhap'], reverse=True)[:20]
-
-    page_obj, page_items = phan_trang_queryset(request, items, per_page=10)
-    return render(request, 'admin/tonkho_list.html', {
-        'items': page_items,
-        'page_obj': page_obj,
-        'cua_hangs': cua_hangs,
-        'cua_hang_id': cua_hang_id,
-        'trang_thai': trang_thai,
-        'q': q,
-        'goi_y_nhap': goi_y_nhap,
-    })
-
-
-@admin_required
-def admin_tonkho_create(request):
-    if request.method == 'POST':
-        cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
-        mat_hang = get_object_or_404(MatHang, id=request.POST.get('mat_hang_id'))
-        so_luong = int(request.POST.get('so_luong', 0))
-        ton_kho, created = TonKho.objects.get_or_create(
-            cua_hang=cua_hang, mat_hang=mat_hang,
-            defaults={'so_luong': so_luong}
-        )
-        if not created:
-            ton_kho.so_luong = so_luong
-            ton_kho.save()
-        ghi_nhat_ky(
-            request,
-            module='Tồn kho',
-            hanh_dong='create' if created else 'update',
-            mo_ta=f"{'Tạo' if created else 'Cập nhật'} tồn kho {mat_hang.ten_mat_hang} tại {cua_hang.ten_cua_hang}, SL={so_luong}"
-        )
-        messages.success(request, 'Cập nhật tồn kho thành công!')
-        return redirect('admin_tonkho_list')
-    cua_hangs = CuaHang.objects.all()
-    mat_hangs = MatHang.objects.all()
-    return render(request, 'admin/tonkho_form.html', {
-        'cua_hangs': cua_hangs, 'mat_hangs': mat_hangs
-    })
-
-
-@admin_required
-def admin_tonkho_update(request, id):
-    muc = get_object_or_404(TonKho, id=id)
-    if request.method == 'POST':
-        du_lieu_truoc = {
-            'cua_hang': muc.cua_hang.ten_cua_hang,
-            'mat_hang': muc.mat_hang.ten_mat_hang,
-            'so_luong': muc.so_luong,
-        }
-        muc.cua_hang = get_object_or_404(CuaHang, id=request.POST.get('cua_hang_id'))
-        muc.mat_hang = get_object_or_404(MatHang, id=request.POST.get('mat_hang_id'))
-        muc.so_luong = int(request.POST.get('so_luong', 0))
-        muc.save()
-        du_lieu_sau = {
-            'cua_hang': muc.cua_hang.ten_cua_hang,
-            'mat_hang': muc.mat_hang.ten_mat_hang,
-            'so_luong': muc.so_luong,
-        }
-        ghi_nhat_ky(
-            request,
-            module='Tồn kho',
-            hanh_dong='update',
-            mo_ta=f"Cập nhật tồn kho {muc.mat_hang.ten_mat_hang} tại {muc.cua_hang.ten_cua_hang}",
-            doi_tuong='TonKho',
-            doi_tuong_id=muc.id,
-            du_lieu_truoc=du_lieu_truoc,
-            du_lieu_sau=du_lieu_sau
-        )
-        messages.success(request, 'Cập nhật thành công!')
-        return redirect('admin_tonkho_list')
-    cua_hangs = CuaHang.objects.all()
-    mat_hangs = MatHang.objects.all()
-    return render(request, 'admin/tonkho_form.html', {
-        'item': muc, 'cua_hangs': cua_hangs, 'mat_hangs': mat_hangs
-    })
-
-
-@admin_required
-def admin_tonkho_delete(request, id):
-    muc = get_object_or_404(TonKho, id=id)
-    ghi_nhat_ky(
-        request,
-        module='Tồn kho',
-        hanh_dong='delete',
-        mo_ta=f"Xóa tồn kho {muc.mat_hang.ten_mat_hang} tại {muc.cua_hang.ten_cua_hang}"
-    )
-    muc.delete()
-    messages.success(request, 'Xóa thành công!')
-    return redirect('admin_tonkho_list')
-
 
 @admin_required
 def admin_tonkho_import_excel(request):
@@ -2083,6 +2257,7 @@ def admin_tonkho_import_excel(request):
 
         thanh_cong = 0
         loi = []
+        diff_rows = []
         for idx, row in enumerate(rows, start=2):
             if not row or len(row) < 3:
                 loi.append(f'Dòng {idx}: thiếu cột')
@@ -2129,16 +2304,39 @@ def admin_tonkho_import_excel(request):
                 cua_hang=cua_hang, mat_hang=mat_hang,
                 defaults={'so_luong': so_luong}
             )
+            old_sl = 0 if created else ton_kho.so_luong
             if not created:
-                ton_kho.so_luong = so_luong  # GHI DE (SET) thay vi CONG
+                ton_kho.so_luong += so_luong  # CỘNG thêm vào tồn kho hiện tại
                 ton_kho.save()
+
+            new_sl = ton_kho.so_luong
+            if old_sl != new_sl:
+                diff_rows.append({
+                    'field': f'{cua_hang.ten_cua_hang} → {mat_hang.ten_mat_hang}',
+                    'old': str(old_sl),
+                    'new': f'{new_sl} (+{so_luong})',
+                })
+                # Ghi lich su kho
+                LichSuKho.objects.create(
+                    ton_kho=ton_kho,
+                    nguoi_thuc_hien=request.user,
+                    loai='import',
+                    so_luong_truoc=old_sl,
+                    so_luong_sau=new_sl,
+                    so_luong_thay_doi=so_luong,
+                    ghi_chu=f'Import từ Excel (+{so_luong})'
+                )
+
             thanh_cong += 1
 
         ghi_nhat_ky(
             request,
             module='Tồn kho',
             hanh_dong='import',
-            mo_ta=f"Nhập Excel tồn kho: {thanh_cong} dòng thành công, {len(loi)} lỗi"
+            mo_ta=f"Nhập Excel tồn kho: {thanh_cong} dòng thành công, {len(loi)} lỗi | {len(diff_rows)} mặt hàng tăng tồn kho",
+            doi_tuong='TonKho' if diff_rows else '',
+            du_lieu_truoc=None,
+            du_lieu_sau=diff_rows if diff_rows else None,
         )
 
         if thanh_cong:
@@ -2152,6 +2350,8 @@ def admin_tonkho_import_excel(request):
         messages.error(request, f'Lỗi đọc file Excel: {e}')
 
     return redirect('admin_tonkho_list')
+
+
 
 
 # ====== ADMIN CRUD: DON HANG ======
@@ -3064,9 +3264,12 @@ def user_dat_hang(request, cua_hang_id):
             messages.success(request, f'Đặt hàng thành công! Mã đơn: DH-{don_hang.id}')
             return redirect('user_don_hang')
 
+    danh_mucs = DanhMuc.objects.all()
+
     return render(request, 'user/dat_hang.html', {
         'cua_hang': cua_hang,
         'ton_khos': ton_khos,
+        'danh_mucs': danh_mucs,
     })
 
 

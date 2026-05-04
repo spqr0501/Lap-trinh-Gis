@@ -177,11 +177,26 @@ class CuaHangSuKien(models.Model):
 
 # ====== QUAN LY KHO ======
 
+class DanhMuc(models.Model):
+    ten_danh_muc = models.CharField(max_length=100)
+    mo_ta = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'danh_muc'
+        verbose_name = 'Danh mục'
+        verbose_name_plural = 'Danh mục'
+        ordering = ['ten_danh_muc']
+
+    def __str__(self):
+        return self.ten_danh_muc
+
+
 class MatHang(models.Model):
     ten_mat_hang = models.CharField(max_length=200)
     don_vi = models.CharField(max_length=50, default='cái')
     gia_ban = models.DecimalField(max_digits=12, decimal_places=0, default=0)
     mo_ta = models.TextField(blank=True)
+    danh_muc = models.ForeignKey(DanhMuc, on_delete=models.SET_NULL, null=True, blank=True, related_name='mat_hangs')
 
     class Meta:
         db_table = 'mat_hang'
@@ -206,6 +221,32 @@ class TonKho(models.Model):
 
     def __str__(self):
         return f"{self.cua_hang.ten_cua_hang} - {self.mat_hang.ten_mat_hang}: {self.so_luong}"
+
+
+class LichSuKho(models.Model):
+    LOAI_CHOICES = [
+        ('nhap', 'Nhập kho'),
+        ('xuat', 'Xuất kho'),
+        ('cap_nhat', 'Cập nhật'),
+        ('import', 'Nhập từ Excel'),
+    ]
+    ton_kho = models.ForeignKey(TonKho, on_delete=models.CASCADE, related_name='lich_su')
+    nguoi_thuc_hien = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    loai = models.CharField(max_length=20, choices=LOAI_CHOICES, default='cap_nhat')
+    so_luong_truoc = models.IntegerField(default=0)
+    so_luong_sau = models.IntegerField(default=0)
+    so_luong_thay_doi = models.IntegerField(default=0)
+    ghi_chu = models.TextField(blank=True)
+    thoi_gian = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'lich_su_kho'
+        verbose_name = 'Lịch sử kho'
+        verbose_name_plural = 'Lịch sử kho'
+        ordering = ['-thoi_gian']
+
+    def __str__(self):
+        return f"{self.ton_kho} | {self.get_loai_display()} | {self.so_luong_thay_doi:+d}"
 
 
 # ====== GIO HANG ======
@@ -311,6 +352,7 @@ class AuditLog(models.Model):
         ('update', 'Cập nhật'),
         ('delete', 'Xóa'),
         ('view', 'Xem'),
+        ('import', 'Nhập dữ liệu'),
         ('export', 'Xuất dữ liệu'),
         ('other', 'Khác'),
     ]

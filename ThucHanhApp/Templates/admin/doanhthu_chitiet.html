@@ -3,8 +3,65 @@
 {% block title %}Chi Tiết Doanh Thu{% endblock %}
 
 {% block content %}
+<style>
+    .dtct-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .dtct-summary {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .dtct-charts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .dtct-charts .card {
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    .dtct-charts canvas {
+        max-width: 100%;
+    }
+
+    .dtct-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .dtct-table-wrap table {
+        width: 100%;
+    }
+
+    @media (max-width: 768px) {
+        .dtct-summary {
+            flex-direction: column;
+        }
+
+        .dtct-charts {
+            grid-template-columns: 1fr;
+        }
+
+        .dtct-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+
 <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+    <div class="dtct-header">
         <h1 style="margin:0;">{{ tieu_de }}</h1>
         <a href="{% url 'admin_doanhthu_chitiet_export_excel' %}?thang={{ request.GET.thang }}&cua_hang={{ request.GET.cua_hang }}"
             class="btn btn-success" style="padding:10px 15px; font-weight:bold;">
@@ -12,7 +69,7 @@
         </a>
     </div>
 
-    <div style="display:flex; gap:20px; margin-bottom:20px;">
+    <div class="dtct-summary">
         <div class="card" style="flex:1; text-align:center; padding:15px;">
             <h3>Tổng Doanh Thu</h3>
             <p style="font-size:24px; color:green; font-weight:bold;">{{ tong_doanh_thu|floatformat:0 }} đ</p>
@@ -24,7 +81,7 @@
     </div>
 
     <!-- Bieu do -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+    <div class="dtct-charts">
         <div class="card" style="padding:15px;">
             <h3 style="margin-bottom:10px;">📈 Doanh Thu Theo Ngày</h3>
             <canvas id="chartNgay" height="220"></canvas>
@@ -35,34 +92,36 @@
         </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Mã ĐH</th>
-                <th>Cửa Hàng</th>
-                <th>Ngày Đặt</th>
-                <th>Tổng Tiền</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for dh in don_hangs %}
-            <tr>
-                <td>DH-{{ dh.id }}</td>
-                <td>{{ dh.cua_hang.ten_cua_hang }}</td>
-                <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
-                <td style="color:green; font-weight:bold;">{{ dh.tong_tien|floatformat:0 }} đ</td>
-                <td>
-                    <a href="{% url 'admin_donhang_detail' dh.id %}" class="btn btn-primary">Chi tiết</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" style="text-align:center;">Không có đơn hàng</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="dtct-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã ĐH</th>
+                    <th>Cửa Hàng</th>
+                    <th>Ngày Đặt</th>
+                    <th>Tổng Tiền</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dh in don_hangs %}
+                <tr>
+                    <td>DH-{{ dh.id }}</td>
+                    <td>{{ dh.cua_hang.ten_cua_hang }}</td>
+                    <td>{{ dh.ngay_dat|date:"d/m/Y H:i" }}</td>
+                    <td style="color:green; font-weight:bold;">{{ dh.tong_tien|floatformat:0 }} đ</td>
+                    <td>
+                        <a href="{% url 'admin_donhang_detail' dh.id %}" class="btn btn-primary">Chi tiết</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center;">Không có đơn hàng</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <div style="margin-top: 15px;">
         <a href="{% url 'admin_doanhthu' %}" class="btn btn-secondary">← Quay lại</a>
@@ -76,8 +135,8 @@
     document.addEventListener('DOMContentLoaded', function () {
         // Bieu do danh thu theo ngay
         var ngayLabels = {{ chart_ngay_labels| safe }};
-        var ngayValues = {{ chart_ngay_values| safe }};
-        var ngaySoDon = {{ chart_ngay_so_don| safe }};
+    var ngayValues = {{ chart_ngay_values| safe }};
+    var ngaySoDon = {{ chart_ngay_so_don| safe }};
 
     new Chart(document.getElementById('chartNgay'), {
         type: 'line',

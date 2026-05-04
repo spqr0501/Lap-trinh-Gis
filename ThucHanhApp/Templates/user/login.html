@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng Nhập</title>
     <style>
         * {
@@ -59,6 +60,30 @@
         input:focus {
             outline: none;
             border-color: #667eea;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-wrapper input {
+            padding-right: 45px;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 18px;
+            color: #999;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .toggle-password:hover {
+            color: #667eea;
         }
 
         .btn {
@@ -135,8 +160,16 @@
                 <input type="text" id="username" name="username" required autofocus>
             </div>
             <div class="form-group">
-                <label for="password">Mật khẩu:</label>
-                <input type="password" id="password" name="password" required>
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+                    <label for="password" style="margin-bottom:0;">Mật khẩu:</label>
+                    <a href="{% url 'password_reset' %}"
+                        style="font-size:13px; color:#667eea; text-decoration:none; font-weight:600;">Quên mật khẩu?</a>
+                </div>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" required>
+                    <span class="toggle-password"
+                        onclick="var p=document.getElementById('password');if(p.type==='password'){p.type='text';this.textContent='🙈'}else{p.type='password';this.textContent='👁️'}">👁️</span>
+                </div>
             </div>
             <button type="submit" class="btn">Đăng Nhập</button>
         </form>
