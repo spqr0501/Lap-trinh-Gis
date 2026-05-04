@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Giỏ Hàng Của Bạn</title>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -194,6 +195,56 @@
             border-radius: 8px;
             font-size: 0.9rem;
             margin-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .topbar {
+                flex-wrap: wrap;
+                padding: 10px 15px;
+                gap: 8px;
+            }
+
+            .topbar a {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.6rem;
+            }
+
+            .col-row {
+                flex-direction: column;
+            }
+
+            .col-8,
+            .col-4 {
+                flex: unset;
+                width: 100%;
+            }
+
+            .summary-card {
+                position: static;
+            }
+
+            .cart-item {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .item-detail {
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .item-action {
+                text-align: left;
+            }
+
+            .header-label {
+                display: none;
+            }
+
+            .footer-row {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>

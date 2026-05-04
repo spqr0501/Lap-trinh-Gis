@@ -273,6 +273,59 @@
             border-top: 1px solid #e2e8f0;
             margin: 30px 0;
         }
+
+        .pw-wrapper {
+            position: relative;
+        }
+
+        .pw-wrapper input {
+            padding-right: 40px;
+        }
+
+        .pw-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 16px;
+            color: #999;
+            user-select: none;
+        }
+
+        .pw-toggle:hover {
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .topbar {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .topbar div {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 5px;
+            }
+
+            .stats-row {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .info-row {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 
@@ -366,18 +419,35 @@
                 <div class="info-row">
                     <div class="info-col">
                         <label>Mật khẩu hiện tại</label>
-                        <input type="password" name="old_password" required>
+                        <div style="position:relative;">
+                            <input type="password" name="old_password" id="pw_old" required style="padding-right:40px;">
+                            <span
+                                onclick="var p=document.getElementById('pw_old');if(p.type==='password'){p.type='text';this.textContent='🙈'}else{p.type='password';this.textContent='👁️'}"
+                                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#999;user-select:none;">👁️</span>
+                        </div>
                     </div>
                     <div class="info-col"></div>
                 </div>
                 <div class="info-row">
                     <div class="info-col">
                         <label>Mật khẩu mới</label>
-                        <input type="password" name="new_password" required minlength="6">
+                        <div style="position:relative;">
+                            <input type="password" name="new_password" id="pw_new" required minlength="6"
+                                style="padding-right:40px;">
+                            <span
+                                onclick="var p=document.getElementById('pw_new');if(p.type==='password'){p.type='text';this.textContent='🙈'}else{p.type='password';this.textContent='👁️'}"
+                                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#999;user-select:none;">👁️</span>
+                        </div>
                     </div>
                     <div class="info-col">
                         <label>Xác nhận mật khẩu mới</label>
-                        <input type="password" name="confirm_password" required minlength="6">
+                        <div style="position:relative;">
+                            <input type="password" name="confirm_password" id="pw_confirm" required minlength="6"
+                                style="padding-right:40px;">
+                            <span
+                                onclick="var p=document.getElementById('pw_confirm');if(p.type==='password'){p.type='text';this.textContent='🙈'}else{p.type='password';this.textContent='👁️'}"
+                                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#999;user-select:none;">👁️</span>
+                        </div>
                     </div>
                 </div>
                 <button type="submit" class="btn-submit">Đổi Mật Khẩu</button>

@@ -16,7 +16,16 @@
             <select name="module">
                 <option value="">Tất cả</option>
                 {% for m in modules %}
-                    <option value="{{ m }}" {% if loc.module == m %}selected{% endif %}>{{ m }}</option>
+                <option value="{{ m }}" {% if loc.module == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="min-width:220px;">
+            <label>Hành động</label>
+            <select name="hanh_dong">
+                <option value="">Tất cả</option>
+                {% for hd in hanh_dong_choices %}
+                <option value="{{ hd.0 }}" {% if loc.hanh_dong == hd.0 %}selected{% endif %}>{{ hd.1 }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -25,7 +34,7 @@
             <select name="user_id">
                 <option value="">Tất cả</option>
                 {% for u in users %}
-                    <option value="{{ u.id }}" {% if loc.user_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+                <option value="{{ u.id }}" {% if loc.user_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -41,78 +50,152 @@
         <a href="{% url 'admin_audit_log' %}" class="btn btn-secondary">Xóa lọc</a>
     </form>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Thời gian</th>
-                <th>Người dùng</th>
-                <th>Module</th>
-                <th>Hành động</th>
-                <th>Mô tả</th>
-                <th>Đối tượng</th>
-                <th>Khác biệt</th>
-                <th>IP</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>{{ log.thoi_gian|date:"d/m/Y H:i:s" }}</td>
-                <td>{{ log.nguoi_dung.username|default:"Ẩn danh" }}</td>
-                <td>{{ log.module }}</td>
-                <td>{{ log.get_hanh_dong_display }}</td>
-                <td>{{ log.mo_ta }}</td>
-                <td>
-                    {% if log.doi_tuong %}
-                        {{ log.doi_tuong }}{% if log.doi_tuong_id %} #{{ log.doi_tuong_id }}{% endif %}
-                    {% else %}
+    <!-- Thống kê nhanh -->
+    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px;">
+        <div
+            style="background:linear-gradient(135deg,#667eea,#764ba2); color:white; padding:12px 20px; border-radius:10px; min-width:130px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:800;">{{ tong_log }}</div>
+            <div style="font-size:0.82rem; opacity:0.85;">Tổng log</div>
+        </div>
+        <div
+            style="background:linear-gradient(135deg,#38a169,#2f855a); color:white; padding:12px 20px; border-radius:10px; min-width:130px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:800;">{{ tong_import }}</div>
+            <div style="font-size:0.82rem; opacity:0.85;">Nhập dữ liệu</div>
+        </div>
+        <div
+            style="background:linear-gradient(135deg,#ed8936,#dd6b20); color:white; padding:12px 20px; border-radius:10px; min-width:130px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:800;">{{ tong_update }}</div>
+            <div style="font-size:0.82rem; opacity:0.85;">Cập nhật</div>
+        </div>
+        <div
+            style="background:linear-gradient(135deg,#e53e3e,#c53030); color:white; padding:12px 20px; border-radius:10px; min-width:130px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:800;">{{ tong_delete }}</div>
+            <div style="font-size:0.82rem; opacity:0.85;">Xóa</div>
+        </div>
+    </div>
+
+    <div class="table-responsive" style="overflow-x: auto; width: 100%; border-radius: 8px;">
+        <table style="min-width:1000px; display:table !important;">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Người dùng</th>
+                    <th>Module</th>
+                    <th>Hành động</th>
+                    <th>Mô tả</th>
+                    <th>Đối tượng</th>
+                    <th>Chi tiết thay đổi</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="white-space:nowrap;">{{ log.thoi_gian|date:"d/m/Y H:i:s" }}</td>
+                    <td>{{ log.nguoi_dung.username|default:"Ẩn danh" }}</td>
+                    <td style="white-space:nowrap;"><span
+                            style="background:#edf2f7; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600;">{{ log.module }}</span></td>
+                    <td style="white-space:nowrap;">
+                        {% if log.hanh_dong == 'create' %}
+                        <span
+                            style="background:#c6f6d5; color:#22543d; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600; white-space:nowrap;">✅
+                            {{ log.get_hanh_dong_display }}</span>
+                        {% elif log.hanh_dong == 'update' %}
+                        <span
+                            style="background:#bee3f8; color:#2a4365; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600; white-space:nowrap;">✏️
+                            {{ log.get_hanh_dong_display }}</span>
+                        {% elif log.hanh_dong == 'delete' %}
+                        <span
+                            style="background:#fed7d7; color:#742a2a; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600; white-space:nowrap;">🗑️
+                            {{ log.get_hanh_dong_display }}</span>
+                        {% elif log.hanh_dong == 'import' %}
+                        <span
+                            style="background:#fefcbf; color:#744210; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600; white-space:nowrap;">📥
+                            {{ log.get_hanh_dong_display }}</span>
+                        {% elif log.hanh_dong == 'export' %}
+                        <span
+                            style="background:#e9d8fd; color:#44337a; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600; white-space:nowrap;">📤
+                            {{ log.get_hanh_dong_display }}</span>
+                        {% elif log.hanh_dong == 'view' %}
+                        <span
+                            style="background:#e2e8f0; color:#2d3748; padding:2px 8px; border-radius:4px; font-size:0.82rem; font-weight:600; white-space:nowrap;">👁️
+                            {{ log.get_hanh_dong_display }}</span>
+                        {% else %}
+                        <span
+                            style="background:#edf2f7; padding:2px 8px; border-radius:4px; font-size:0.82rem; white-space:nowrap;">{{ log.get_hanh_dong_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="min-width:180px; max-width:320px; word-break:break-word;">{{ log.mo_ta }}</td>
+                    <td>
+                        {% if log.doi_tuong %}
+                        <span style="font-weight:600;">{{ log.doi_tuong }}</span>{% if log.doi_tuong_id %} <span
+                            style="color:#718096;">#{{ log.doi_tuong_id }}</span>{% endif %}
+                        {% else %}
                         -
-                    {% endif %}
-                </td>
-                <td style="max-width:340px;">
-                    {% if log.du_lieu_truoc or log.du_lieu_sau %}
-                        <details>
-                            <summary>Xem khác biệt</summary>
-                            <div style="margin-top:6px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                                <div style="background:#fff5f5; border:1px solid #fed7d7; border-radius:6px; padding:8px;">
-                                    <div style="font-weight:700; color:#9b2c2c; margin-bottom:4px;">Trước</div>
-                                    {% if log.diff_rows %}
+                        {% endif %}
+                    </td>
+                    <td style="min-width:320px; max-width:450px;">
+                        {% if log.diff_rows %}
+                        <details {% if log.hanh_dong == 'import' %}open{% endif %}>
+                            <summary style="cursor:pointer; font-weight:600; color:#4c51bf;">
+                                📋 {{ log.diff_rows|length }} thay đổi
+                            </summary>
+                            <div
+                                style="margin-top:6px; max-height:300px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px;">
+                                <table
+                                    style="width:100%; min-width:320px; border-collapse:collapse; font-size:0.85rem; table-layout:fixed;">
+                                    <colgroup>
+                                        <col style="width:40%;">
+                                        <col style="width:30%;">
+                                        <col style="width:30%;">
+                                    </colgroup>
+                                    <thead>
+                                        <tr style="background:#edf2f7;">
+                                            <th
+                                                style="padding:6px 8px; text-align:left; border-bottom:2px solid #cbd5e0; font-weight:700; color:#2d3748;">
+                                                Trường</th>
+                                            <th
+                                                style="padding:6px 8px; text-align:center; border-bottom:2px solid #cbd5e0; font-weight:700; color:#9b2c2c;">
+                                                Trước</th>
+                                            <th
+                                                style="padding:6px 8px; text-align:center; border-bottom:2px solid #cbd5e0; font-weight:700; color:#22543d;">
+                                                Sau</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         {% for row in log.diff_rows %}
-                                            <div style="background:#fff0f0; border-left:3px solid #f56565; padding:2px 6px; border-radius:4px; margin-bottom:4px;">
-                                                <strong>{{ row.key }}:</strong> {{ row.truoc }}
-                                            </div>
+                                        <tr style="border-bottom:1px solid #e2e8f0; vertical-align:top;">
+                                            <td
+                                                style="padding:6px 8px; font-weight:600; word-break:break-word; overflow-wrap:break-word; line-height:1.4;">
+                                                {{ row.key }}</td>
+                                            <td
+                                                style="padding:6px 8px; background:#fff5f5; color:#9b2c2c; text-align:center; word-break:break-word; overflow-wrap:break-word;">
+                                                {{ row.truoc }}</td>
+                                            <td
+                                                style="padding:6px 8px; background:#f0fff4; color:#276749; font-weight:600; text-align:center; word-break:break-word; overflow-wrap:break-word;">
+                                                {{ row.sau }}</td>
+                                        </tr>
                                         {% endfor %}
-                                    {% else %}
-                                        <div>Không có thay đổi</div>
-                                    {% endif %}
-                                </div>
-                                <div style="background:#f0fff4; border:1px solid #9ae6b4; border-radius:6px; padding:8px;">
-                                    <div style="font-weight:700; color:#276749; margin-bottom:4px;">Sau</div>
-                                    {% if log.diff_rows %}
-                                        {% for row in log.diff_rows %}
-                                            <div style="background:#ebfff3; border-left:3px solid #38a169; padding:2px 6px; border-radius:4px; margin-bottom:4px;">
-                                                <strong>{{ row.key }}:</strong> {{ row.sau }}
-                                            </div>
-                                        {% endfor %}
-                                    {% else %}
-                                        <div>Không có thay đổi</div>
-                                    {% endif %}
-                                </div>
+                                    </tbody>
+                                </table>
                             </div>
                         </details>
-                    {% else %}
+                        {% elif log.du_lieu_truoc or log.du_lieu_sau %}
+                        <span style="color:#a0aec0;">Không có khác biệt</span>
+                        {% else %}
                         -
-                    {% endif %}
-                </td>
-                <td>{{ log.ip_address|default:"-" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="8" style="text-align:center;">Chưa có nhật ký</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.82rem; color:#718096;">{{ log.ip_address|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align:center;">Chưa có nhật ký</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% include 'admin/pagination.html' %}
 </div>
 {% endblock %}

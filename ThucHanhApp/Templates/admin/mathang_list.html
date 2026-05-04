@@ -4,65 +4,258 @@
 {% block title %}Quản Lý Mặt Hàng{% endblock %}
 
 {% block content %}
+<style>
+    .mh-stats {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .mh-stat-card {
+        flex: 1;
+        min-width: 160px;
+        padding: 18px 15px;
+        border-radius: 10px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    .mh-stat-card h3 {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #ffffff !important;
+        margin-bottom: 6px;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+        letter-spacing: 0.3px;
+    }
+
+    .mh-stat-card .mh-num {
+        font-size: 1.8rem;
+        font-weight: 800;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .mh-toolbar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .mh-filter {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .mh-filter form {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 0;
+    }
+
+    .mh-filter .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .mh-filter label {
+        font-weight: 600;
+        font-size: 13px;
+        color: #4a5568;
+    }
+
+    .mh-filter select,
+    .mh-filter input[type="text"] {
+        padding: 8px 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 6px;
+    }
+
+    .mh-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .mh-table-wrap table {
+        width: 100%;
+    }
+
+    tr.row-no-price {
+        background: #fff5f5 !important;
+    }
+
+    tr.row-no-price td:first-child {
+        border-left: 3px solid #e53e3e;
+    }
+
+    .mh-badge-dm {
+        background: #e9d8fd;
+        color: #553c9a;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+        .mh-stats {
+            flex-direction: column;
+        }
+
+        .mh-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .mh-filter form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .mh-filter select,
+        .mh-filter input[type="text"] {
+            width: 100%;
+        }
+    }
+</style>
+
 <div class="card">
-    <h1>Danh Sách Mặt Hàng</h1>
-    <div style="display:flex; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+    <h1>🏷️ Quản Lý Mặt Hàng</h1>
+
+    <!-- Dashboard Stats -->
+    <div class="mh-stats">
+        <div class="mh-stat-card" style="background:linear-gradient(135deg,#667eea,#764ba2);">
+            <h3>Tổng Mặt Hàng</h3>
+            <div class="mh-num">{{ tong_mat_hang }}</div>
+        </div>
+        <div class="mh-stat-card" style="background:linear-gradient(135deg,#e53e3e,#c53030);">
+            <h3>⚠️ Chưa Có Giá</h3>
+            <div class="mh-num">{{ chua_co_gia }}</div>
+        </div>
+        <div class="mh-stat-card" style="background:linear-gradient(135deg,#38a169,#2f855a);">
+            <h3>💰 Giá Trung Bình</h3>
+            <div class="mh-num">{{ gia_tb|floatformat:0 }}đ</div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="mh-toolbar">
         <a href="{% url 'admin_mathang_create' %}" class="btn btn-success">Thêm Mới</a>
 
         <form method="post" action="{% url 'admin_mathang_import_excel' %}" enctype="multipart/form-data"
             style="display:flex; gap:6px; align-items:center; margin:0;" id="form-import-excel">
             {% csrf_token %}
             <label for="excel_file" class="btn btn-primary"
-                style="background:#2b6cb0; border-color:#2b6cb0; cursor:pointer; margin:0; padding:6px 14px; display:inline-flex; align-items:center; gap:4px; border-radius: 4px;">
+                style="background:#2b6cb0; border-color:#2b6cb0; cursor:pointer; margin:0; padding:6px 14px; display:inline-flex; align-items:center; gap:4px; border-radius:4px;">
                 📥 Nhập từ Excel
             </label>
             <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" style="display:none;"
                 onchange="document.getElementById('form-import-excel').submit();">
         </form>
 
+        <a href="{% url 'admin_mathang_export_excel' %}" class="btn btn-success"
+            style="background:#38a169; border-color:#38a169;">📤 Xuất Excel</a>
+
         <a href="{% static 'mathang_mau.xlsx' %}" download class="btn btn-secondary"
-            style="background: transparent; color: #2b6cb0; border: none; text-decoration: underline; padding: 6px; box-shadow: none;">
+            style="background:transparent; color:#2b6cb0; border:none; text-decoration:underline; padding:6px; box-shadow:none;">
             🔽 Tải file mẫu
         </a>
+    </div>
 
-        <form method="get" style="margin-left:auto; display:flex;">
-            <input type="text" name="q" value="{{ q }}" class="search-box" placeholder="🔍 Tìm kiếm..."
-                style="padding:8px 15px; border:2px solid #ddd; border-radius:6px; width:250px;">
+    <!-- Filter -->
+    <div class="mh-filter">
+        <form method="get">
+            <div class="field">
+                <label>Tìm kiếm</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="🔍 Tên mặt hàng..." style="width:220px;">
+            </div>
+            <div class="field">
+                <label for="danh_muc">Danh mục</label>
+                <select name="danh_muc" id="danh_muc" onchange="this.form.submit()">
+                    <option value="">Tất cả danh mục</option>
+                    {% for dm in ds_danh_muc %}
+                    <option value="{{ dm.id }}" {% if danh_muc_filter == dm.id|stringformat:"d" %}selected{% endif %}>
+                        {{ dm.ten_danh_muc }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="don_vi">Đơn vị</label>
+                <select name="don_vi" id="don_vi" onchange="this.form.submit()">
+                    <option value="">Tất cả đơn vị</option>
+                    {% for dv in ds_don_vi %}
+                    <option value="{{ dv }}" {% if don_vi_filter == dv %}selected{% endif %}>{{ dv }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; align-items:flex-end; padding-bottom:1px; margin-top:20px;">
+                <button type="submit" style="display:none;">Search</button>
+                <a href="{% url 'admin_mathang_list' %}" class="btn btn-secondary" style="padding:8px 16px;">Xóa lọc</a>
+            </div>
         </form>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Tên Mặt Hàng</th>
-                <th>Đơn Vị</th>
-                <th>Giá Bán</th>
-                <th>Mô Tả</th>
-                <th>Hành Động</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <td>{{ item.id }}</td>
-                <td>{{ item.ten_mat_hang }}</td>
-                <td>{{ item.don_vi }}</td>
-                <td>{{ item.gia_ban|floatformat:0 }} đ</td>
-                <td>{{ item.mo_ta|truncatewords:10 }}</td>
-                <td>
-                    <a href="{% url 'admin_mathang_update' item.id %}" class="btn btn-primary">Sửa</a>
-                    <a href="{% url 'admin_mathang_delete' item.id %}" class="btn btn-danger"
-                        onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" style="text-align: center;">Chưa có dữ liệu</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Table -->
+    <div class="mh-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên Mặt Hàng</th>
+                    <th>Danh Mục</th>
+                    <th>Đơn Vị</th>
+                    <th>Giá Bán</th>
+                    <th>Mô Tả</th>
+                    <th>Hành Động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr class="{% if item.gia_ban == 0 %}row-no-price{% endif %}">
+                    <td>{{ item.id }}</td>
+                    <td>
+                        <strong>{{ item.ten_mat_hang }}</strong>
+                        {% if item.gia_ban == 0 %}
+                        <span
+                            style="background:#fed7d7;color:#c53030;padding:2px 6px;border-radius:4px;font-size:0.72rem;margin-left:4px;">CHƯA
+                            GIÁ</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.danh_muc %}
+                        <span class="mh-badge-dm">{{ item.danh_muc.ten_danh_muc }}</span>
+                        {% else %}
+                        <span style="color:#a0aec0;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.don_vi }}</td>
+                    <td>{{ item.gia_ban|floatformat:0 }} đ</td>
+                    <td>{{ item.mo_ta|truncatewords:10 }}</td>
+                    <td>
+                        <a href="{% url 'admin_mathang_update' item.id %}" class="btn btn-primary">Sửa</a>
+                        <a href="{% url 'admin_mathang_delete' item.id %}" class="btn btn-danger"
+                            onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center;">Chưa có dữ liệu</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% include 'admin/pagination.html' %}
 </div>
 {% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{% if item %}Sửa{% else %}Thêm{% endif %} Danh Mục{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h1>{% if item %}Sửa{% else %}Thêm{% endif %} Danh Mục Mặt Hàng</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="ten_danh_muc">Tên Danh Mục:</label>
+            <input type="text" id="ten_danh_muc" name="ten_danh_muc" value="{{ item.ten_danh_muc|default:'' }}" required
+                placeholder="VD: Nước uống, Đồ ăn vặt...">
+        </div>
+
+        <div class="form-group">
+            <label for="mo_ta">Mô Tả:</label>
+            <textarea id="mo_ta" name="mo_ta" rows="4"
+                placeholder="Mô tả danh mục này...">{{ item.mo_ta|default:'' }}</textarea>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-success">Lưu</button>
+            <a href="{% url 'admin_danhmuc_list' %}" class="btn btn-secondary">Hủy</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

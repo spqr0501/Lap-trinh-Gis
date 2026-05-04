@@ -19,6 +19,8 @@
 
 <body>
     <nav>
+        <button class="nav-toggle" onclick="document.querySelector('nav ul').classList.toggle('nav-open')"
+            aria-label="Menu">☰</button>
         <ul>
             <li><a href="{% url 'admin_dashboard' %}" data-active-prefix="/quan-ly/dashboard/"
                     class="{% if request.resolver_match and request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">Dashboard</a>
@@ -38,6 +40,9 @@
             <li><a href="{% url 'admin_cuahang_sukien_list' %}" data-active-prefix="/quan-ly/cuahang-sukien/"
                     class="{% if request.resolver_match and request.resolver_match.url_name == 'admin_cuahang_sukien_list' %}active{% endif %}">CH-SK</a>
             </li>
+            <li><a href="{% url 'admin_danhmuc_list' %}" data-active-prefix="/quan-ly/danhmuc/"
+                    class="{% if request.resolver_match and request.resolver_match.url_name == 'admin_danhmuc_list' %}active{% endif %}">Danh
+                    Mục</a></li>
             <li><a href="{% url 'admin_mathang_list' %}" data-active-prefix="/quan-ly/mathang/"
                     class="{% if request.resolver_match and request.resolver_match.url_name == 'admin_mathang_list' %}active{% endif %}">Mặt
                     Hàng</a></li>

@@ -1,4 +1,5 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -55,6 +56,11 @@ urlpatterns = [
     path('quan-ly/cuahang-sukien/create/', views.admin_cuahang_sukien_create, name='admin_cuahang_sukien_create'),
     path('quan-ly/cuahang-sukien/<int:id>/update/', views.admin_cuahang_sukien_update, name='admin_cuahang_sukien_update'),
     path('quan-ly/cuahang-sukien/<int:id>/delete/', views.admin_cuahang_sukien_delete, name='admin_cuahang_sukien_delete'),
+    # Admin CRUD: Danh Muc
+    path('quan-ly/danhmuc/', views.admin_danhmuc_list, name='admin_danhmuc_list'),
+    path('quan-ly/danhmuc/create/', views.admin_danhmuc_create, name='admin_danhmuc_create'),
+    path('quan-ly/danhmuc/<int:id>/update/', views.admin_danhmuc_update, name='admin_danhmuc_update'),
+    path('quan-ly/danhmuc/<int:id>/delete/', views.admin_danhmuc_delete, name='admin_danhmuc_delete'),
 
     # Admin CRUD: Mat Hang
     path('quan-ly/mathang/', views.admin_mathang_list, name='admin_mathang_list'),
@@ -62,6 +68,7 @@ urlpatterns = [
     path('quan-ly/mathang/<int:id>/update/', views.admin_mathang_update, name='admin_mathang_update'),
     path('quan-ly/mathang/<int:id>/delete/', views.admin_mathang_delete, name='admin_mathang_delete'),
     path('quan-ly/mathang/import-excel/', views.admin_mathang_import_excel, name='admin_mathang_import_excel'),
+    path('quan-ly/mathang/export-excel/', views.admin_mathang_export_excel, name='admin_mathang_export_excel'),
 
     # Admin CRUD: Ton Kho
     path('quan-ly/tonkho/', views.admin_tonkho_list, name='admin_tonkho_list'),
@@ -69,6 +76,8 @@ urlpatterns = [
     path('quan-ly/tonkho/<int:id>/update/', views.admin_tonkho_update, name='admin_tonkho_update'),
     path('quan-ly/tonkho/<int:id>/delete/', views.admin_tonkho_delete, name='admin_tonkho_delete'),
     path('quan-ly/tonkho/import-excel/', views.admin_tonkho_import_excel, name='admin_tonkho_import_excel'),
+    path('quan-ly/tonkho/export-excel/', views.admin_tonkho_export_excel, name='admin_tonkho_export_excel'),
+    path('quan-ly/tonkho/lichsu/', views.admin_lichsu_kho, name='admin_lichsu_kho'),
 
     # Admin CRUD: Don Hang
     path('quan-ly/donhang/', views.admin_donhang_list, name='admin_donhang_list'),
@@ -90,6 +99,12 @@ urlpatterns = [
     path('dang-nhap/', views.user_login, name='user_login'),
     path('dang-xuat/', views.user_logout, name='user_logout'),
     path('ho-so/', views.user_profile, name='user_profile'),
+
+    # Quen mat khau (Password Reset Flow)
+    path('quen-mat-khau/', auth_views.PasswordResetView.as_view(template_name='user/password_reset.html'), name='password_reset'),
+    path('quen-mat-khau/gui-email/', auth_views.PasswordResetDoneView.as_view(template_name='user/password_reset_done.html'), name='password_reset_done'),
+    path('quen-mat-khau/dat-lai/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='user/password_reset_confirm.html'), name='password_reset_confirm'),
+    path('quen-mat-khau/hoan-tat/', auth_views.PasswordResetCompleteView.as_view(template_name='user/password_reset_complete.html'), name='password_reset_complete'),
 
     # User: Dat hang
     path('dat-hang/<int:cua_hang_id>/', views.user_dat_hang, name='user_dat_hang'),
