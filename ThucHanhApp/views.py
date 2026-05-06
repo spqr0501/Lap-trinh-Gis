@@ -126,6 +126,11 @@ def admin_required(view_func):
 
 # ====== CAC VIEW CONG KHAI ======
 
+def gioi_thieu(request):
+    """Trang gioi thieu ve he thong WebGIS"""
+    return render(request, 'gioi_thieu.html')
+
+
 def trang_chu(request):
     """
     Trang chu voi ban do tich hop, dinh tuyen, thanh ben va cac cong cu GIS

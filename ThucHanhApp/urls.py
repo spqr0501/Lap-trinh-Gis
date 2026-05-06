@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     # Main page with all features integrated
     path('', views.trang_chu, name='trang_chu'),
+    path('gioi-thieu/', views.gioi_thieu, name='gioi_thieu'),
     
     # GIS Tools API
     path('api/gis-tools/', views.api_gis_tools, name='api_gis_tools'),

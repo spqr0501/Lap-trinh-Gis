@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giới Thiệu - Hệ Thống WebGIS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f7f6;
+            color: #2d3748;
+        }
+
+        /* Topbar */
+        .topbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .topbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 5px;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .topbar a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .topbar .brand {
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-decoration: none;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: white;
+            border-radius: 12px;
+            padding: 50px 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+            animation: slideUp 0.8s ease-out;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            color: #333;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            font-weight: 800;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: #4a5568;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Sections */
+        .section-title {
+            text-align: center;
+            font-size: 1.8rem;
+            margin: 40px 0 25px;
+            color: #2d3748;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 10px auto 0;
+            border-radius: 2px;
+        }
+
+        /* Features */
+        .features-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .feature-card {
+            flex: 1;
+            min-width: 200px;
+            background: white;
+            padding: 30px 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+            animation: slideUp 1s ease-out backwards;
+        }
+
+        .feature-card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .feature-card:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .feature-card:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        .icon-blue {
+            color: #667eea;
+        }
+
+        .icon-green {
+            color: #38a169;
+        }
+
+        .icon-orange {
+            color: #f6ad55;
+        }
+
+        .icon-purple {
+            color: #9f7aea;
+        }
+
+        .feature-card h3 {
+            margin: 0 0 12px;
+            font-size: 1.15rem;
+            color: #2d3748;
+        }
+
+        .feature-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #718096;
+            line-height: 1.6;
+        }
+
+        /* About Block */
+        .about-block {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .about-text {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .about-text h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .about-text p {
+            color: #4a5568;
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+
+        /* Stats Section */
+        .stats-wrapper {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 40px;
+            color: white;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-item h4 {
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+            font-weight: 800;
+        }
+
+        .stat-item p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        /* Timeline/Workflow */
+        .workflow {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 40px;
+        }
+
+        .step {
+            display: flex;
+            margin-bottom: 30px;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            font-size: 1.2rem;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .step-content p {
+            color: #718096;
+            line-height: 1.6;
+        }
+
+        /* Animation */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #a0aec0;
+            font-size: 0.95rem;
+            padding-bottom: 30px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-wrapper {
+                flex-direction: column;
+                gap: 30px;
+            }
+
+            .step {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .step-number {
+                margin: 0 auto 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <a href="{% url 'trang_chu' %}" class="brand">✨ Giới Thiệu WebGIS</a>
+        <div>
+            <a href="{% url 'trang_chu' %}">← Quay lại Trang Chủ</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1>Khám Phá Sức Mạnh Bản Đồ Số</h1>
+            <p>Hệ thống WebGIS thông minh, tích hợp quản lý chuỗi cửa hàng tiện lợi, phân tích không gian và cung cấp
+                báo cáo đa chiều giúp tối ưu hóa nghiệp vụ kinh doanh.</p>
+        </div>
+
+        <!-- Tiêu điểm -->
+        <h2 class="section-title">Điểm Nổi Bật Của Hệ Thống</h2>
+        <div class="features-row">
+            <div class="feature-card">
+                <i class="fas fa-map-marked-alt feature-icon icon-orange"></i>
+                <h3>Bản Đồ Trực Quan</h3>
+                <p>Quan sát vị trí cửa hàng, sự phân bố điểm bán lẻ trực tiếp trên bản đồ nền số độ phân giải cao và
+                    hoàn toàn miễn phí.</p>
+            </div>
+
+            <div class="feature-card">
+                <i class="fas fa-route feature-icon icon-blue"></i>
+                <h3>Định Tuyến Thông Minh</h3>
+                <p>Tự động tìm kiếm cửa hàng gần nhất hoặc vạch ra lộ trình đi lại tối ưu dựa trên công cụ phân tích
+                    không gian chuyên dụng.</p>
+            </div>
+
+            <div class="feature-card">
+                <i class="fas fa-chart-line feature-icon icon-green"></i>
+                <h3>Báo Cáo Đa Chiều</h3>
+                <p>Hệ thống Admin Dashboard tích hợp nhiều biểu đồ giúp theo dõi doanh thu theo thời gian, theo cửa
+                    hàng, và phân tích xu hướng phản hồi của người dùng.</p>
+            </div>
+
+            <div class="feature-card">
+                <i class="fas fa-users-cog feature-icon icon-purple"></i>
+                <h3>Quản Lý Linh Hoạt</h3>
+                <p>Hệ thống phân quyền chặt chẽ, quản lý đánh giá, kho hàng, xử lý đơn đặt hàng tự động giúp bộ máy kinh
+                    doanh trơn tru hơn.</p>
+            </div>
+        </div>
+
+        <!-- Chi tiết dự án -->
+        <div class="about-block">
+            <div class="about-text">
+                <h3>Về Dự Án WebGIS Store</h3>
+                <p>WebGIS Store là một nền tảng chuyển đổi số tiên tiến, được xây dựng nhằm thu hẹp khoảng cách giữa
+                    khách hàng và dịch vụ bán lẻ thông qua trải nghiệm không gian trực quan ưu việt.</p>
+                <p>Với các bộ công cụ không gian độc quyền như <b>tìm kiếm theo bán kính</b>, <b>tạo vùng đệm
+                        (buffer)</b>, nền tảng không chỉ là nơi xem địa chỉ mà còn là cầu nối phân tích đánh giá, cung
+                    ứng hàng hóa giữa kho hàng trung tâm tới các điểm bán một cách mật thiết và hiệu quả nhất.</p>
+            </div>
+        </div>
+
+        <!-- Tại sao chọn chúng tôi -->
+        <div class="about-block">
+            <div class="about-text">
+                <h3>Sứ Mệnh Tiên Phong</h3>
+                <p>Mục tiêu của chúng tôi là mang lại giải pháp quản trị không gian số thân thiện và dễ tiếp cận tới bất
+                    cứ doanh nghiệp mô hình chuỗi nào. Số hóa bản đồ không chỉ là đánh dấu một vị trí, mà là khai thác
+                    dữ liệu từ vị trí đó để <b>kiến tạo giá trị</b>.</p>
+                <p>Thông qua quy trình kiểm soát tinh gọn, hệ thống hứa hẹn tiết kiệm hàng chục giờ vận hành mỗi tuần
+                    cho đội ngũ quản trị hệ thống đa chi nhánh.</p>
+            </div>
+        </div>
+
+        <!-- Những con số -->
+        <div class="stats-wrapper">
+            <div class="stat-item">
+                <h4>99.9%</h4>
+                <p>Thời gian Up-time</p>
+            </div>
+            <div class="stat-item">
+                <h4><i class="fas fa-bolt"></i></h4>
+                <p>Xử lý truy vấn tốc độ cao</p>
+            </div>
+            <div class="stat-item">
+                <h4>24/7</h4>
+                <p>Theo dõi thời gian thực</p>
+            </div>
+        </div>
+
+        <!-- Cách thức hoạt động -->
+        <h2 class="section-title">Trải Nghiệm Dễ Dàng</h2>
+        <div class="workflow">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h4>Tìm Kiếm Từ Bản Đồ</h4>
+                    <p>Mở ứng dụng bản đồ WebGIS, nhập địa chỉ hoặc sử dụng vị trí hiện tại để tự động khoanh vùng khu
+                        vực, gợi ý đoạn đường tốt nhất đi tới cửa hàng lý tưởng nhất.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h4>Đặt Hàng & Theo Dõi Kho</h4>
+                    <p>Khám phá giỏ hàng, xem trước giá cả sản phẩm, trạng thái tồn kho ở từng chi nhánh. Hoàn tất thanh
+                        toán trực tuyến dễ dàng chỉ qua một vài tương tác chuột.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h4>Đóng Góp Phản Hồi</h4>
+                    <p>Đăng trải nghiệm mua sắm, nhận xét và tạo tương tác. Những dữ liệu cộng đồng này được quản lý tự
+                        động, đem đến góc nhìn rõ nét về xu hướng bán lẻ.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 WebGIS Store Management Portfolio.</p>
+            <p style="margin-top: 8px;">Được định hình và phát triển với công nghệ Web Mapping, Django & Phân Tích Dữ
+                Liệu.</p>
+        </footer>
+    </div>
+</body>
+
+</html>

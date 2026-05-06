@@ -692,6 +692,7 @@
     <div class="header">
         <h1>🗺️ Bản Đồ Cửa Hàng Tiện Lợi</h1>
         <div class="header-links">
+            <a href="{% url 'gioi_thieu' %}">ℹ️ Giới thiệu</a>
             {% if user.is_authenticated %}
             <a href="{% url 'user_profile' %}" style="color: #a8d8ff; text-decoration:none;">👤 {% if user.last_name %}{{ user.last_name }} {% endif %}
                 {% if user.first_name %}{{ user.first_name }}
@@ -902,7 +903,7 @@
         window.WEBGIS_HISTORY_USER_KEY = "{% if user.is_authenticated %}{{ user.username|escapejs }}{% else %}guest{% endif %}";
         // Du lieu cua hang tu Django - load vao bien toan cuc
         // Du lieu cua hang tu Django - load vao bien toan cuc
- du_lieu_cua_hang = [
+du_lieu_cua_hang = [
     {% for sd in stores_data %}
     {
         "id": {{ sd.store.id }},
@@ -918,7 +919,7 @@
 
         "danh_sach_su_kien": [
             {% for event in sd.events %}
-                "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %},{% endif %}
+            "{{ event.ten_su_kien|escapejs }}"{% if not forloop.last %}, {% endif %}
             {% endfor %}
         ],
 
@@ -936,7 +937,7 @@
 
         "khoang_cach": null,
         "dau_hieu": null
-    }{% if not forloop.last %},{% endif %}
+    }{% if not forloop.last %}, {% endif %}
     {% endfor %}
 ];
         // Khoi tao ban do khi DOM da san sang

@@ -1,0 +1,60 @@
+HƯỚNG DẪN CÀI ĐẶT DỰ ÁN WEBGIS LÊN MÁY TRỐNG
+
+1. YÊU CẦU HỆ THỐNG
+- Cài đặt Python phiên bản >= 3.9 (đảm bảo chọn "Add Python to PATH" ở tiến trình cài đặt).
+- Cài đặt PostgreSQL (Nên cài bản 12, 13, 14, 15...).
+- Môi trường thư viện OSGeo4W Windows (Bắt buộc để sử dụng tính năng bản đồ GIS của Django PostGIS).
+
+2. CÀI ĐẶT POSTGRESQL, POSTGIS VÀ CSDL DỰ ÁN
+- Tải và cài đặt PostgreSQL thông thường.
+- Ngay khi cài xong PostgreSQL, hệ thống thông báo mở tính năng Stack Builder -> Click tích chọn mở lên. Tại đây chọn bản Server lúc nãy tải cài đặt, vào thư mục "Spatial Extensions" -> Đánh dấu tick tải "PostGIS 3.x Bundle". Cài đặt bình thường bằng Next (nhớ các pass).
+- Sau khi xong, mở ứng dụng pgAdmin 4:
+  1. Kết nối localhost, Create (Tạo mới) -> Database. Điền vào cột tên: quan_ly_cua_hang_tien_loi
+  2. Chuột phải vào Database "quan_ly_cua_hang_tien_loi" vừa tạo, chọn "Query Tool" (Công cụ truy vấn).
+  3. Tiến hành gõ: CREATE EXTENSION postgis; và bấm biểu tượng "Play" (mũi tên chạy). Việc này làm cho Database có tính năng bản đồ không gian và tọa độ.
+  4. Hướng dẫn backup database vào máy trống: Chuột phải vào Database "quan_ly_cua_hang_tien_loi", chọn "Restore". Tại mục Filename, click vào nút dấu (...) hoặc biểu tượng thư mục, chọn mục định dạng (Format) là "All Files" hay "Custom or tar", sau đó tìm và trỏ tới file `QLCH.backup` có trong tệp thư mục gốc. Sau đó bấm "Restore" ở dưới cùng để khôi phục toàn bộ bảng và dữ liệu mẫu.
+
+*Lưu ý: Tài khoản kết nối CSDL mặc định trong source code nằm ở file thẻ `ThucHanh/settings.py` là:
+ USER: postgres
+ PASSWORD: 123456
+ HOST: localhost
+ PORT: 5432
+(Hãy đảm bảo password lúc bạn cài PostgreSQL giống 123456, nếu không bạn phải vào settings.py trên đoạn code để chỉnh cái password ứng với bạn máy tính của bạn).
+
+3. THIẾT LẬP MÔI TRƯỜNG THƯ VIỆN BẢN ĐỒ (OSGEO4W)
+- Tải file OSGeo4W installer ở trang chủ (https://trac.osgeo.org/osgeo4w/).
+- Trỏ cài đặt nó vào ổ `E:\OSGEO4W` (Theo y nguyên cấu hình hiện tại).
+  *Nếu máy tính bạn không có ổ E, bạn cứ cài đặt vô `C:\OSGEO4W`. Nhưng bạn phải vào code dòng `ThucHanh/settings.py` ở đoạn `OSGEO4W = r'E:\OSGEO4W'` đổi nó thành `OSGEO4W = r'C:\OSGEO4W'` nhé!
+
+4. TẠO TỆP BIẾN MÔI TRƯỜNG .ENV
+- Trong thư mục "ThucHanh" (ngang hàng vợi file manage.py), hãy copy file `.env.example` và thiết lập đổi tên mới của nó thành `.env`. Điền API Keys (nếu bạn chạy ứng dụng Stripe thẻ tín dụng hoặc Mailtrap gửi mail thật). Nếu bạn không có khoá API mới thật thì cứ giữ nó mặc định để code test hoạt động giả lập.
+
+5. KHỞI CHẠY SERVER DỰ ÁN
+- Mở Terminal/ CMD trỏ về vị trí chứa `manage.py`. Lần đầu tiên nên chạy gõ lệnh:
+  python manage.py makemigrations
+  python manage.py migrate
+  python manage.py runserver
+
+- Nếu thành công không lỗi, hãy truy cập link: http://127.0.0.1:8000/ để dùng.
+
+
+========================================================================================
+TỔNG HỢP CÁC THƯ VIỆN IMPORT - CODE CHẠY TẠI CUỐI
+========================================================================================
+Project cần các thư viện bổ trợ sau để vận hành WebGIS, Hình thẻ, Quét mail v.v:
+- Django bản 6: Core web
+- django-anymail[mailtrap]: Gửi nhận dịch vụ mail xác minh mật khẩu.
+- psycopg2 hoặc psycopg2-binary: Database Adapter nối Database.
+- Pillow: Up hình cửa hàng tĩnh, user
+- openpyxl: Kết xuất nhập excel Doanh thu & Tồn kho
+- reportlab: In định dạng file hoá đơn PDF đơn hàng
+- stripe: Cổng thanh toán hóa đơn quốc tế.
+
+--- TRƯỚC KHI CHẠY CODE ---
+(Nên cài mô hình ảo để không dơ file gốc máy trống): 
+  python -m venv venv
+  venv\Scripts\activate
+  
+--- VUI LÒNG CHẠY TOÀN BỘ CODE CÀI SAU VÀO CMD / TERMINAL CỦA VSC ---
+
+pip install Django>=6.0 django-anymail[mailtrap]>=12.0 psycopg2 psycopg2-binary openpyxl reportlab stripe Pillow
