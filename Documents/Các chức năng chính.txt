@@ -1,0 +1,230 @@
+================================================================================
+    CÁC CHỨC NĂNG CHÍNH CỦA DỰ ÁN - HỆ THỐNG WEBGIS QUẢN LÝ CỬA HÀNG
+================================================================================
+Dự án: Lập trình GIS
+Công nghệ: Django + PostGIS + Leaflet + Chart.js + Stripe
+
+================================================================================
+1. CHỨC NĂNG BẢN ĐỒ (MAP) - Trang chủ
+================================================================================
+   - Hiển thị bản đồ tương tác bằng Leaflet với tọa độ SRID 4326
+   - Hiển thị tất cả cửa hàng dưới dạng marker trên bản đồ
+   - Popup thông tin chi tiết cửa hàng khi click marker
+   - Lọc cửa hàng theo loại cửa hàng
+   - Hiển thị sự kiện đang diễn ra tại mỗi cửa hàng
+   - Thanh bên (sidebar) hiển thị danh sách cửa hàng
+   - Hiển thị phân bố sao đánh giá & điểm trung bình cho từng cửa hàng
+   - Hiển thị số đơn đã thanh toán và số đánh giá
+
+================================================================================
+2. CÔNG CỤ GIS TỰ VIẾT (Không dùng thư viện bên ngoài)
+================================================================================
+   - Tính khoảng cách Haversine giữa 2 điểm (km, m)
+   - Tìm cửa hàng gần nhất từ vị trí người dùng
+   - Tạo vùng đệm hình tròn (buffer) quanh một điểm
+   - Tính điểm trung tâm (centroid) của tập hợp cửa hàng
+   - Tìm cửa hàng trong bán kính cho trước
+   - Tính hướng đi (bearing/azimuth) giữa 2 điểm
+   - Kiểm tra điểm trong đa giác (Ray Casting algorithm)
+   - Tính diện tích đa giác (Shoelace formula)
+   - Lấy khung bao (bounding box) cho tập hợp điểm
+   - Đơn giản hóa đường (Douglas-Peucker algorithm)
+   -> API endpoint: /api/gis-tools/
+
+================================================================================
+3. PHÂN QUYỀN & XÁC THỰC
+================================================================================
+   3.1. Phân quyền Admin (Staff):
+      - Trang đăng nhập riêng cho admin (/quan-ly/login/)
+      - Decorator @admin_required kiểm tra quyền truy cập
+      - Chỉ user có is_staff=True mới truy cập được trang quản lý
+      - Đăng xuất admin
+
+   3.2. Phân quyền User (Người dùng thường):
+      - Đăng ký tài khoản (có gửi email chào mừng)
+      - Đăng nhập / Đăng xuất
+      - Quên mật khẩu (Password Reset qua email - 4 bước)
+      - Trang hồ sơ cá nhân: cập nhật thông tin, đổi mật khẩu
+      - Decorator @login_required cho các trang cần đăng nhập
+
+================================================================================
+4. QUẢN LÝ KHO (Phân kho)
+================================================================================
+   4.1. Quản lý Danh mục:
+      - CRUD danh mục sản phẩm (tên, mô tả)
+
+   4.2. Quản lý Mặt hàng:
+      - CRUD mặt hàng (tên, đơn vị, giá bán, mô tả, danh mục)
+      - Import mặt hàng từ Excel
+      - Export danh sách mặt hàng ra Excel
+
+   4.3. Quản lý Tồn kho:
+      - CRUD tồn kho theo từng cửa hàng - mặt hàng
+      - Phân kho: mỗi cửa hàng có tồn kho riêng biệt
+      - Import tồn kho từ Excel
+      - Export tồn kho ra Excel
+      - Lịch sử kho: ghi nhận mọi thay đổi (nhập, xuất, cập nhật, import)
+        + Ghi lại: số lượng trước, số lượng sau, số lượng thay đổi
+        + Ghi lại người thực hiện, ghi chú, thời gian
+
+================================================================================
+5. QUẢN LÝ CỬA HÀNG & LOẠI CỬA HÀNG
+================================================================================
+   5.1. Loại cửa hàng:
+      - CRUD loại cửa hàng (tên loại, mô tả)
+
+   5.2. Cửa hàng:
+      - CRUD cửa hàng (tên, địa chỉ, loại, tọa độ GIS - PointField)
+      - Chọn vị trí trên bản đồ khi tạo/sửa cửa hàng
+
+================================================================================
+6. QUẢN LÝ SỰ KIỆN
+================================================================================
+   - CRUD sự kiện (tên, mô tả, ngày bắt đầu, ngày kết thúc)
+   - Hỗ trợ sự kiện hàng tuần (chọn các ngày trong tuần)
+   - Liên kết sự kiện với cửa hàng (bảng CuaHangSuKien)
+   - Tự động kiểm tra sự kiện đang diễn ra
+
+================================================================================
+7. ĐÁNH GIÁ & TƯƠNG TÁC
+================================================================================
+   - Gửi đánh giá (1-5 sao) kèm nhận xét cho cửa hàng
+   - Upload hình ảnh đánh giá (tối đa 3 ảnh)
+   - Cập nhật đánh giá (mỗi user chỉ 1 đánh giá/cửa hàng)
+   - Xóa ảnh đánh giá đã upload
+   - Like/Unlike đánh giá
+   - Sắp xếp đánh giá theo số like, ngày
+   - Phân bố sao (1★ → 5★) và điểm trung bình
+   - Cho phép đánh giá ẩn danh (không cần đăng nhập)
+
+================================================================================
+8. GIỎ HÀNG & ĐẶT HÀNG
+================================================================================
+   8.1. Giỏ hàng:
+      - Thêm sản phẩm vào giỏ hàng (API JSON)
+      - Xem giỏ hàng, phân nhóm theo cửa hàng
+      - Xóa sản phẩm khỏi giỏ hàng
+      - Kiểm tra tồn kho khi thêm vào giỏ
+      - Thanh toán từng cửa hàng hoặc thanh toán tất cả
+
+   8.2. Đặt hàng trực tiếp:
+      - Đặt hàng từ trang cửa hàng (chọn sản phẩm, số lượng)
+      - Nhập thông tin giao hàng (SĐT, địa chỉ, tọa độ trên bản đồ)
+      - Kiểm tra tồn kho trước khi đặt
+      - Ghi chú đơn hàng
+
+   8.3. Thanh toán:
+      - COD (Thanh toán khi nhận hàng)
+      - Stripe (Thanh toán online qua thẻ)
+        + Tạo Checkout Session
+        + Callback xử lý thanh toán thành công/hủy
+        + Tự động cập nhật trạng thái đơn hàng
+
+   8.4. Quản lý đơn hàng (User):
+      - Xem lịch sử đơn hàng (có phân trang)
+      - Xem chi tiết đơn hàng (API JSON - cho in PDF)
+      - Trạng thái: Chờ xử lý → Đang giao → Đã thanh toán / Đã hủy
+
+================================================================================
+9. QUẢN LÝ ĐƠN HÀNG (Admin)
+================================================================================
+   - Danh sách đơn hàng (lọc, tìm kiếm)
+   - Xem chi tiết đơn hàng
+   - Tạo / Cập nhật / Xóa đơn hàng
+   - Cập nhật trạng thái đơn hàng
+   - Export danh sách đơn hàng ra CSV
+
+================================================================================
+10. THỐNG KÊ & DOANH THU
+================================================================================
+   10.1. Dashboard Admin:
+      - Thống kê tổng quan: số loại, số cửa hàng, số đánh giá, số sự kiện
+      - Thống kê đơn hàng: tổng, hôm nay, tháng này, theo trạng thái
+      - Top 5 cửa hàng doanh thu cao nhất
+      - Biểu đồ doanh thu 6 tháng gần nhất
+      - Biểu đồ doanh thu 7 ngày gần nhất
+      - Biểu đồ doanh thu theo quý (4 quý gần nhất)
+      - Top 5 cửa hàng đánh giá cao nhất (biểu đồ)
+      - Phân bố sao toàn hệ thống
+      - 5 đánh giá gần đây nhất
+
+   10.2. Trang Doanh Thu:
+      - Lọc doanh thu theo: tháng, quý, năm, tùy chỉnh ngày
+      - Lọc theo cửa hàng
+      - Biểu đồ doanh thu theo tháng, theo cửa hàng
+      - Export báo cáo doanh thu ra Excel
+      - Export báo cáo doanh thu ra PDF (hỗ trợ wkhtmltopdf)
+
+   10.3. Chi tiết Doanh Thu:
+      - Lọc theo tháng, theo cửa hàng
+      - Biểu đồ theo ngày, theo cửa hàng
+      - Export chi tiết doanh thu ra Excel
+
+================================================================================
+11. HỆ THỐNG THÔNG BÁO (Admin)
+================================================================================
+   - Thông báo tự động khi có đơn hàng mới
+   - Gửi cho tất cả staff users
+   - Nội dung chi tiết: thông tin đơn, sản phẩm, cửa hàng
+   - Đánh dấu đã đọc / đọc tất cả
+   - Xóa thông báo đã đọc / xóa từng thông báo
+   - API thông báo (hiển thị real-time trên header)
+   - Badge hiển thị số thông báo chưa đọc
+
+================================================================================
+12. NHẬT KÝ THAO TÁC (Audit Log)
+================================================================================
+   - Ghi lại mọi thao tác: tạo, cập nhật, xóa, xem, import, export
+   - Ghi nhận: người dùng, module, hành động, mô tả
+   - Ghi nhận IP address
+   - Ghi nhận đối tượng bị tác động (tên, ID)
+   - Lưu dữ liệu trước/sau thay đổi (JSON)
+   - Trang xem nhật ký cho admin (có phân trang)
+
+================================================================================
+13. GỬI EMAIL TỰ ĐỘNG
+================================================================================
+   - Email chào mừng khi đăng ký tài khoản
+   - Email xác nhận đặt hàng (COD)
+   - Email xác nhận thanh toán Stripe thành công
+   - Hỗ trợ SMTP (Mailtrap) hoặc Mailtrap API
+   - Password Reset qua email
+
+================================================================================
+14. TRANG GIỚI THIỆU
+================================================================================
+   - Giới thiệu về hệ thống WebGIS
+   - Giao diện riêng biệt
+
+================================================================================
+15. CÁC TÍNH NĂNG KỸ THUẬT KHÁC
+================================================================================
+   - Phân trang (pagination) cho danh sách dữ liệu
+   - Hệ thống template: base_admin.html cho các trang admin
+   - Responsive design
+   - Biểu đồ Chart.js cho dashboard và doanh thu
+   - API RESTful (JSON) cho các thao tác AJAX
+   - Upload và quản lý hình ảnh (ImageField)
+   - CSRF protection
+   - PostgreSQL/PostGIS database
+
+================================================================================
+                            TỔNG KẾT
+================================================================================
+Dự án bao gồm 15 nhóm chức năng chính:
+  1.  Bản đồ tương tác (Map)
+  2.  Công cụ GIS tự viết
+  3.  Phân quyền & Xác thực
+  4.  Quản lý Kho (Phân kho)
+  5.  Quản lý Cửa hàng & Loại cửa hàng
+  6.  Quản lý Sự kiện
+  7.  Đánh giá & Tương tác
+  8.  Giỏ hàng & Đặt hàng
+  9.  Quản lý Đơn hàng (Admin)
+  10. Thống kê & Doanh thu
+  11. Hệ thống Thông báo
+  12. Nhật ký Thao tác (Audit Log)
+  13. Gửi Email tự động
+  14. Trang Giới thiệu
+  15. Các tính năng kỹ thuật khác
+================================================================================
